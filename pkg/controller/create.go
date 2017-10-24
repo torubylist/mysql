@@ -7,17 +7,17 @@ import (
 
 	"github.com/appscode/go/log"
 	"github.com/appscode/go/types"
-	kutildb "github.com/appscode/kutil/kubedb/v1alpha1"
 	tapi "github.com/k8sdb/apimachinery/apis/kubedb/v1alpha1"
+	kutildb "github.com/k8sdb/apimachinery/client/typed/kubedb/v1alpha1/util"
 	"github.com/k8sdb/apimachinery/pkg/docker"
 	"github.com/k8sdb/apimachinery/pkg/eventer"
 	"github.com/k8sdb/apimachinery/pkg/storage"
+	apps "k8s.io/api/apps/v1beta1"
+	batch "k8s.io/api/batch/v1"
+	core "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
-	batch "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
 const (
@@ -46,13 +46,13 @@ func (c *Controller) findService(mysql *tapi.MySQL) (bool, error) {
 }
 
 func (c *Controller) createService(mysql *tapi.MySQL) error {
-	svc := &apiv1.Service{
+	svc := &core.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mysql.OffshootName(),
 			Labels: mysql.OffshootLabels(),
 		},
-		Spec: apiv1.ServiceSpec{
-			Ports: []apiv1.ServicePort{
+		Spec: core.ServiceSpec{
+			Ports: []core.ServicePort{
 			// TODO: Use appropriate port for your service
 			},
 			Selector: mysql.OffshootLabels(),
@@ -61,7 +61,7 @@ func (c *Controller) createService(mysql *tapi.MySQL) error {
 	if mysql.Spec.Monitor != nil &&
 		mysql.Spec.Monitor.Agent == tapi.AgentCoreosPrometheus &&
 		mysql.Spec.Monitor.Prometheus != nil {
-		svc.Spec.Ports = append(svc.Spec.Ports, apiv1.ServicePort{
+		svc.Spec.Ports = append(svc.Spec.Ports, core.ServicePort{
 			Name:       tapi.PrometheusExporterPortName,
 			Port:       tapi.PrometheusExporterPortNumber,
 			TargetPort: intstr.FromString(tapi.PrometheusExporterPortName),
@@ -105,22 +105,22 @@ func (c *Controller) createStatefulSet(mysql *tapi.MySQL) (*apps.StatefulSet, er
 		Spec: apps.StatefulSetSpec{
 			Replicas:    types.Int32P(1),
 			ServiceName: c.opt.GoverningService,
-			Template: apiv1.PodTemplateSpec{
+			Template: core.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: mysql.OffshootLabels(),
 				},
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+				Spec: core.PodSpec{
+					Containers: []core.Container{
 						{
 							Name: tapi.ResourceNameMySQL,
 							//TODO: Use correct image. Its a template
 							Image:           fmt.Sprintf("%s:%s", "", mysql.Spec.Version),
-							ImagePullPolicy: apiv1.PullIfNotPresent,
-							Ports:           []apiv1.ContainerPort{
+							ImagePullPolicy: core.PullIfNotPresent,
+							Ports:           []core.ContainerPort{
 							//TODO: Use appropriate port for your container
 							},
 							Resources: mysql.Spec.Resources,
-							VolumeMounts: []apiv1.VolumeMount{
+							VolumeMounts: []core.VolumeMount{
 								//TODO: Add Secret volume if necessary
 								{
 									Name:      "data",
@@ -142,7 +142,7 @@ func (c *Controller) createStatefulSet(mysql *tapi.MySQL) (*apps.StatefulSet, er
 	if mysql.Spec.Monitor != nil &&
 		mysql.Spec.Monitor.Agent == tapi.AgentCoreosPrometheus &&
 		mysql.Spec.Monitor.Prometheus != nil {
-		exporter := apiv1.Container{
+		exporter := core.Container{
 			Name: "exporter",
 			Args: []string{
 				"export",
@@ -150,11 +150,11 @@ func (c *Controller) createStatefulSet(mysql *tapi.MySQL) (*apps.StatefulSet, er
 				"--v=3",
 			},
 			Image:           docker.ImageOperator + ":" + c.opt.ExporterTag,
-			ImagePullPolicy: apiv1.PullIfNotPresent,
-			Ports: []apiv1.ContainerPort{
+			ImagePullPolicy: core.PullIfNotPresent,
+			Ports: []core.ContainerPort{
 				{
 					Name:          tapi.PrometheusExporterPortName,
-					Protocol:      apiv1.ProtocolTCP,
+					Protocol:      core.ProtocolTCP,
 					ContainerPort: int32(tapi.PrometheusExporterPortNumber),
 				},
 			},
@@ -176,7 +176,7 @@ func (c *Controller) createStatefulSet(mysql *tapi.MySQL) (*apps.StatefulSet, er
 			return in
 		})
 		if err != nil {
-			c.recorder.Eventf(mysql.ObjectReference(), apiv1.EventTypeWarning, eventer.EventReasonFailedToUpdate, err.Error())
+			c.recorder.Eventf(mysql.ObjectReference(), core.EventTypeWarning, eventer.EventReasonFailedToUpdate, err.Error())
 			return nil, err
 		}
 		mysql = _mysql
@@ -233,7 +233,7 @@ func (c *Controller) findSecret(secretName, namespace string) (bool, error) {
 // ---> start
 //TODO: Use this method to create secret dynamically
 // otherwise remove this method
-func (c *Controller) createDatabaseSecret(mysql *tapi.MySQL) (*apiv1.SecretVolumeSource, error) {
+func (c *Controller) createDatabaseSecret(mysql *tapi.MySQL) (*core.SecretVolumeSource, error) {
 	authSecretName := mysql.Name + "-admin-auth"
 
 	found, err := c.findSecret(authSecretName, mysql.Namespace)
@@ -243,14 +243,14 @@ func (c *Controller) createDatabaseSecret(mysql *tapi.MySQL) (*apiv1.SecretVolum
 
 	if !found {
 
-		secret := &apiv1.Secret{
+		secret := &core.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: authSecretName,
 				Labels: map[string]string{
 					tapi.LabelDatabaseKind: tapi.ResourceKindMySQL,
 				},
 			},
-			Type: apiv1.SecretTypeOpaque,
+			Type: core.SecretTypeOpaque,
 			Data: make(map[string][]byte), // Add secret data
 		}
 		if _, err := c.Client.CoreV1().Secrets(mysql.Namespace).Create(secret); err != nil {
@@ -258,7 +258,7 @@ func (c *Controller) createDatabaseSecret(mysql *tapi.MySQL) (*apiv1.SecretVolum
 		}
 	}
 
-	return &apiv1.SecretVolumeSource{
+	return &core.SecretVolumeSource{
 		SecretName: authSecretName,
 	}, nil
 }
@@ -268,11 +268,11 @@ func (c *Controller) createDatabaseSecret(mysql *tapi.MySQL) (*apiv1.SecretVolum
 // ---> Start
 //TODO: Use this method to add secret volume
 // otherwise remove this method
-func addSecretVolume(statefulSet *apps.StatefulSet, secretVolume *apiv1.SecretVolumeSource) error {
+func addSecretVolume(statefulSet *apps.StatefulSet, secretVolume *core.SecretVolumeSource) error {
 	statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes,
-		apiv1.Volume{
+		core.Volume{
 			Name: "secret",
-			VolumeSource: apiv1.VolumeSource{
+			VolumeSource: core.VolumeSource{
 				Secret: secretVolume,
 			},
 		},
@@ -282,17 +282,17 @@ func addSecretVolume(statefulSet *apps.StatefulSet, secretVolume *apiv1.SecretVo
 
 // ---> End
 
-func addDataVolume(statefulSet *apps.StatefulSet, pvcSpec *apiv1.PersistentVolumeClaimSpec) {
+func addDataVolume(statefulSet *apps.StatefulSet, pvcSpec *core.PersistentVolumeClaimSpec) {
 	if pvcSpec != nil {
 		if len(pvcSpec.AccessModes) == 0 {
-			pvcSpec.AccessModes = []apiv1.PersistentVolumeAccessMode{
-				apiv1.ReadWriteOnce,
+			pvcSpec.AccessModes = []core.PersistentVolumeAccessMode{
+				core.ReadWriteOnce,
 			}
-			log.Infof(`Using "%v" as AccessModes in "%v"`, apiv1.ReadWriteOnce, *pvcSpec)
+			log.Infof(`Using "%v" as AccessModes in "%v"`, core.ReadWriteOnce, *pvcSpec)
 		}
 		// volume claim templates
 		// Dynamically attach volume
-		statefulSet.Spec.VolumeClaimTemplates = []apiv1.PersistentVolumeClaim{
+		statefulSet.Spec.VolumeClaimTemplates = []core.PersistentVolumeClaim{
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "data",
@@ -307,10 +307,10 @@ func addDataVolume(statefulSet *apps.StatefulSet, pvcSpec *apiv1.PersistentVolum
 		// Attach Empty directory
 		statefulSet.Spec.Template.Spec.Volumes = append(
 			statefulSet.Spec.Template.Spec.Volumes,
-			apiv1.Volume{
+			core.Volume{
 				Name: "data",
-				VolumeSource: apiv1.VolumeSource{
-					EmptyDir: &apiv1.EmptyDirVolumeSource{},
+				VolumeSource: core.VolumeSource{
+					EmptyDir: &core.EmptyDirVolumeSource{},
 				},
 			},
 		)
@@ -322,7 +322,7 @@ func addDataVolume(statefulSet *apps.StatefulSet, pvcSpec *apiv1.PersistentVolum
 // Otherwise, remove it
 func addInitialScript(statefulSet *apps.StatefulSet, script *tapi.ScriptSourceSpec) {
 	statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts = append(statefulSet.Spec.Template.Spec.Containers[0].VolumeMounts,
-		apiv1.VolumeMount{
+		core.VolumeMount{
 			Name:      "initial-script",
 			MountPath: "/var/db-script",
 		},
@@ -333,7 +333,7 @@ func addInitialScript(statefulSet *apps.StatefulSet, script *tapi.ScriptSourceSp
 	}
 
 	statefulSet.Spec.Template.Spec.Volumes = append(statefulSet.Spec.Template.Spec.Volumes,
-		apiv1.Volume{
+		core.Volume{
 			Name:         "initial-script",
 			VolumeSource: script.VolumeSource,
 		},
@@ -430,12 +430,12 @@ func (c *Controller) createRestoreJob(mysql *tapi.MySQL, snapshot *tapi.Snapshot
 			Labels: jobLabel,
 		},
 		Spec: batch.JobSpec{
-			Template: apiv1.PodTemplateSpec{
+			Template: core.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: jobLabel,
 				},
-				Spec: apiv1.PodSpec{
-					Containers: []apiv1.Container{
+				Spec: core.PodSpec{
+					Containers: []core.Container{
 						{
 							Name: SnapshotProcess_Restore,
 							//TODO: Use appropriate image
@@ -448,7 +448,7 @@ func (c *Controller) createRestoreJob(mysql *tapi.MySQL, snapshot *tapi.Snapshot
 								fmt.Sprintf(`--snapshot=%s`, snapshot.Name),
 							},
 							Resources: snapshot.Spec.Resources,
-							VolumeMounts: []apiv1.VolumeMount{
+							VolumeMounts: []core.VolumeMount{
 								//TODO: Mount secret volume if necessary
 								{
 									Name:      persistentVolume.Name,
@@ -462,7 +462,7 @@ func (c *Controller) createRestoreJob(mysql *tapi.MySQL, snapshot *tapi.Snapshot
 							},
 						},
 					},
-					Volumes: []apiv1.Volume{
+					Volumes: []core.Volume{
 						//TODO: Add secret volume if necessary
 						// Check postgres repository for example
 						{
@@ -471,24 +471,24 @@ func (c *Controller) createRestoreJob(mysql *tapi.MySQL, snapshot *tapi.Snapshot
 						},
 						{
 							Name: "osmconfig",
-							VolumeSource: apiv1.VolumeSource{
-								Secret: &apiv1.SecretVolumeSource{
+							VolumeSource: core.VolumeSource{
+								Secret: &core.SecretVolumeSource{
 									SecretName: snapshot.Name,
 								},
 							},
 						},
 					},
-					RestartPolicy: apiv1.RestartPolicyNever,
+					RestartPolicy: core.RestartPolicyNever,
 				},
 			},
 		},
 	}
 	if snapshot.Spec.SnapshotStorageSpec.Local != nil {
-		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, apiv1.VolumeMount{
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, core.VolumeMount{
 			Name:      "local",
 			MountPath: snapshot.Spec.SnapshotStorageSpec.Local.Path,
 		})
-		volume := apiv1.Volume{
+		volume := core.Volume{
 			Name:         "local",
 			VolumeSource: snapshot.Spec.SnapshotStorageSpec.Local.VolumeSource,
 		}
