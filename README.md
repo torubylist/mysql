@@ -1,6 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/k8sdb/mysql)](https://goreportcard.com/report/github.com/k8sdb/mysql)
 
-[Website](https://kubedb.com) • [Slack](http://slack.kubernetes.io) • [Twitter](https://twitter.com/AppsCodeHQ)
+[Website](https://kubedb.com) • [Slack](http://slack.kubernetes.io) • [Twitter](https://twitter.com/KubeDB)
 
 # mysql
 Run MySQL in Kubernetes
