@@ -9,7 +9,7 @@ import (
 	"github.com/appscode/go/log"
 	"github.com/appscode/go/types"
 	api "github.com/k8sdb/apimachinery/apis/kubedb/v1alpha1"
-	kutildb "github.com/k8sdb/apimachinery/client/typed/kubedb/v1alpha1/util"
+	"github.com/k8sdb/apimachinery/client/typed/kubedb/v1alpha1/util"
 	"github.com/k8sdb/apimachinery/pkg/docker"
 	"github.com/k8sdb/apimachinery/pkg/eventer"
 	"github.com/k8sdb/apimachinery/pkg/storage"
@@ -119,7 +119,6 @@ func (c *Controller) createStatefulSet(mysql *api.MySQL) (*apps.StatefulSet, err
 							Name:            api.ResourceNameMySQL,
 							Image:           fmt.Sprintf("%s:%s", docker.ImageMySQL, mysql.Spec.Version),
 							ImagePullPolicy: core.PullIfNotPresent,
-							//ImagePullPolicy: "Always", //Testing
 							Ports: []core.ContainerPort{
 								{
 									Name:          "db",
@@ -130,7 +129,7 @@ func (c *Controller) createStatefulSet(mysql *api.MySQL) (*apps.StatefulSet, err
 							VolumeMounts: []core.VolumeMount{
 								{
 									Name:      "data",
-									MountPath: "/var/lib/mysql", //Volume path of mysql, https://github.com/docker-library/mysql/blob/86431f073b3d2f963d21e33cb8943f0bdcdf143d/8.0/Dockerfile#L48
+									MountPath: "/var/lib/mysql", //Volume path of mysql, ref: https://github.com/docker-library/mysql/blob/86431f073b3d2f963d21e33cb8943f0bdcdf143d/8.0/Dockerfile#L48
 								},
 							},
 						},
@@ -173,7 +172,7 @@ func (c *Controller) createStatefulSet(mysql *api.MySQL) (*apps.StatefulSet, err
 			return nil, err
 		}
 
-		_mysql, err := kutildb.TryPatchMySQL(c.ExtClient, mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
+		_mysql, err := util.TryPatchMySQL(c.ExtClient, mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
 			in.Spec.DatabaseSecret = secretVolumeSource
 			return in
 		})
@@ -181,7 +180,7 @@ func (c *Controller) createStatefulSet(mysql *api.MySQL) (*apps.StatefulSet, err
 			c.recorder.Eventf(mysql.ObjectReference(), core.EventTypeWarning, eventer.EventReasonFailedToUpdate, err.Error())
 			return nil, err
 		}
-		mysql = _mysql
+		mysql.Spec = _mysql.Spec
 	}
 
 	//Set root user password from Secret
@@ -250,7 +249,6 @@ func (c *Controller) createDatabaseSecret(mysql *api.MySQL) (*core.SecretVolumeS
 	if err != nil {
 		return nil, err
 	}
-
 	if !found {
 		MYSQL_PASSWORD := fmt.Sprintf("%s", rand.GeneratePassword())
 		data := map[string][]byte{
@@ -270,7 +268,6 @@ func (c *Controller) createDatabaseSecret(mysql *api.MySQL) (*core.SecretVolumeS
 			return nil, err
 		}
 	}
-
 	return &core.SecretVolumeSource{
 		SecretName: authSecretName,
 	}, nil
@@ -352,7 +349,7 @@ func (c *Controller) createDormantDatabase(mysql *api.MySQL) (*api.DormantDataba
 	}
 
 	initSpec, _ := json.Marshal(mysql.Spec.Init)
-	if initSpec != nil {
+	if mysql.Spec.Init != nil {
 		dormantDb.Annotations = map[string]string{
 			api.MySQLInitSpec: string(initSpec),
 		}
@@ -422,8 +419,9 @@ func (c *Controller) createRestoreJob(mysql *api.MySQL, snapshot *api.Snapshot) 
 				Spec: core.PodSpec{
 					Containers: []core.Container{
 						{
-							Name:  SnapshotProcess_Restore,
-							Image: fmt.Sprintf("%s:%s-util", docker.ImageMySQL, mysql.Spec.Version),
+							Name: SnapshotProcess_Restore,
+							//Image: fmt.Sprintf("%s:%s-util", docker.ImageMySQL, mysql.Spec.Version), //todo
+							Image: fmt.Sprintf("kubedb/mysql:8.0-util"),
 							Args: []string{
 								fmt.Sprintf(`--process=%s`, SnapshotProcess_Restore),
 								fmt.Sprintf(`--host=%s`, databaseName),
@@ -467,7 +465,7 @@ func (c *Controller) createRestoreJob(mysql *api.MySQL, snapshot *api.Snapshot) 
 							Name: "osmconfig",
 							VolumeSource: core.VolumeSource{
 								Secret: &core.SecretVolumeSource{
-									SecretName: snapshot.Name,
+									SecretName: snapshot.OSMSecretName(),
 								},
 							},
 						},

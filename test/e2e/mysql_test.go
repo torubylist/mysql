@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/appscode/go/types"
@@ -46,7 +47,7 @@ var _ = Describe("MySQL", func() {
 		f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
 	}
 
-	var deleteTestResouce = func() {
+	var deleteTestResource = func() {
 		By("Delete mysql")
 		err = f.DeleteMySQL(mysql.ObjectMeta)
 		Expect(err).NotTo(HaveOccurred())
@@ -77,7 +78,7 @@ var _ = Describe("MySQL", func() {
 		createAndWaitForRunning()
 
 		// Delete test resource
-		deleteTestResouce()
+		deleteTestResource()
 	}
 
 	Describe("Test", func() {
@@ -134,7 +135,7 @@ var _ = Describe("MySQL", func() {
 				})
 
 				// Delete test resource
-				deleteTestResouce()
+				deleteTestResource()
 			})
 		})
 
@@ -169,7 +170,7 @@ var _ = Describe("MySQL", func() {
 				}
 
 				// Delete test resource
-				deleteTestResouce()
+				deleteTestResource()
 
 				if !skipDataCheck {
 					By("Check for snapshot data")
@@ -211,7 +212,7 @@ var _ = Describe("MySQL", func() {
 							StorageClassName: types.StringP(f.StorageClass),
 						}
 					})
-					FIt("should run successfully", shouldTakeSnapshot)
+					It("should run successfully", shouldTakeSnapshot)
 				})
 			})
 
@@ -282,60 +283,62 @@ var _ = Describe("MySQL", func() {
 				It("should run successfully", shouldSuccessfullyRunning)
 			})
 
-			//todo: with snapshot
-			//Context("With Snapshot", func() {
-			//	AfterEach(func() {
-			//		f.DeleteSecret(secret.ObjectMeta)
-			//	})
-			//
-			//	BeforeEach(func() {
-			//		secret = f.SecretForS3Backend()
-			//		snapshot.Spec.StorageSecretName = secret.Name
-			//		snapshot.Spec.S3 = &api.S3Spec{
-			//			Bucket: os.Getenv(S3_BUCKET_NAME),
-			//		}
-			//		snapshot.Spec.DatabaseName = mysql.Name
-			//	})
-			//
-			//	It("should run successfully", func() {
-			//		// Create and wait for running MySQL
-			//		createAndWaitForRunning()
-			//
-			//		By("Create Secret")
-			//		f.CreateSecret(secret)
-			//
-			//		By("Create Snapshot")
-			//		f.CreateSnapshot(snapshot)
-			//
-			//		By("Check for Successed snapshot")
-			//		f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSuccessed))
-			//
-			//		By("Check for snapshot data")
-			//		f.EventuallySnapshotDataFound(snapshot).Should(BeTrue())
-			//
-			//		oldMySQL, err := f.GetMySQL(mysql.ObjectMeta)
-			//		Expect(err).NotTo(HaveOccurred())
-			//
-			//		By("Create mysql from snapshot")
-			//		mysql = f.MySQL()
-			//		mysql.Spec.DatabaseSecret = oldMySQL.Spec.DatabaseSecret
-			//		mysql.Spec.Init = &api.InitSpec{
-			//			SnapshotSource: &api.SnapshotSourceSpec{
-			//				Namespace: snapshot.Namespace,
-			//				Name:      snapshot.Name,
-			//			},
-			//		}
-			//
-			//		// Create and wait for running MySQL
-			//		createAndWaitForRunning()
-			//
-			//		// Delete test resource
-			//		deleteTestResouce()
-			//		mysql = oldMySQL
-			//		// Delete test resource
-			//		deleteTestResouce()
-			//	})
-			//})
+			Context("With Snapshot", func() {
+				AfterEach(func() {
+					f.DeleteSecret(secret.ObjectMeta)
+				})
+
+				var shouldRestoreSnapshot = func() {
+					// Create and wait for running MySQL
+					createAndWaitForRunning()
+
+					By("Create Secret")
+					f.CreateSecret(secret)
+
+					By("Create Snapshot")
+					f.CreateSnapshot(snapshot)
+
+					By("Check for Successed snapshot")
+					f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSuccessed))
+
+					By("Check for snapshot data")
+					f.EventuallySnapshotDataFound(snapshot).Should(BeTrue())
+
+					oldMySQL, err := f.GetMySQL(mysql.ObjectMeta)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Create mysql from snapshot")
+					mysql = f.MySQL()
+					mysql.Spec.Init = &api.InitSpec{
+						SnapshotSource: &api.SnapshotSourceSpec{
+							Namespace: snapshot.Namespace,
+							Name:      snapshot.Name,
+						},
+					}
+
+					// Create and wait for running MySQL
+					createAndWaitForRunning()
+
+					// Delete test resource
+					deleteTestResource()
+					mysql = oldMySQL
+					// Delete test resource
+					deleteTestResource()
+				}
+
+				Context("with GCS", func() {
+					BeforeEach(func() {
+						secret = f.SecretForGCSBackend()
+						snapshot.Spec.StorageSecretName = secret.Name
+						snapshot.Spec.GCS = &api.GCSSpec{
+							Bucket: os.Getenv(GCS_BUCKET_NAME),
+						}
+						snapshot.Spec.DatabaseName = mysql.Name
+					})
+
+					It("should run successfully", shouldRestoreSnapshot)
+				})
+			})
 
 		})
 
@@ -376,7 +379,7 @@ var _ = Describe("MySQL", func() {
 				}
 
 				// Delete test resource
-				deleteTestResouce()
+				deleteTestResource()
 			}
 
 			Context("Without Init", func() {
@@ -427,89 +430,165 @@ var _ = Describe("MySQL", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					// Delete test resource
-					deleteTestResouce()
+					deleteTestResource()
+				})
+				Context("Multiple times with init", func() {
+					BeforeEach(func() {
+						usedInitSpec = true
+						mysql.Spec.Init = &api.InitSpec{
+							ScriptSource: &api.ScriptSourceSpec{
+								VolumeSource: core.VolumeSource{
+									GitRepo: &core.GitRepoVolumeSource{
+										Repository: "https://github.com/the-redback/mysql-init-script.git",
+										Directory:  ".",
+									},
+								},
+							},
+						}
+					})
+
+					It("should resume DormantDatabase successfully", func() {
+						// Create and wait for running MySQL
+						createAndWaitForRunning()
+
+						for i := 0; i < 3; i++ {
+							By(fmt.Sprintf("%v-th", i+1) + " time running.")
+							By("Delete mysql")
+							f.DeleteMySQL(mysql.ObjectMeta)
+
+							By("Wait for mysql to be paused")
+							f.EventuallyDormantDatabaseStatus(mysql.ObjectMeta).Should(matcher.HavePaused())
+
+							// Create MySQL object again to resume it
+							By("Create MySQL: " + mysql.Name)
+							err = f.CreateMySQL(mysql)
+							Expect(err).NotTo(HaveOccurred())
+
+							By("Wait for DormantDatabase to be deleted")
+							f.EventuallyDormantDatabase(mysql.ObjectMeta).Should(BeFalse())
+
+							By("Wait for Running mysql")
+							f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
+
+							_, err := f.GetMySQL(mysql.ObjectMeta)
+							Expect(err).NotTo(HaveOccurred())
+						}
+
+						// Delete test resource
+						deleteTestResource()
+					})
 				})
 			})
 		})
 
-		//todo: snapshot schedule
-		//Context("SnapshotScheduler", func() {
-		//	AfterEach(func() {
-		//		f.DeleteSecret(secret.ObjectMeta)
-		//	})
-		//
-		//	BeforeEach(func() {
-		//		secret = f.SecretForLocalBackend()
-		//	})
-		//
-		//	Context("With Startup", func() {
-		//		BeforeEach(func() {
-		//			mysql.Spec.BackupSchedule = &api.BackupScheduleSpec{
-		//				CronExpression: "@every 1m",
-		//				SnapshotStorageSpec: api.SnapshotStorageSpec{
-		//					StorageSecretName: secret.Name,
-		//					Local: &api.LocalSpec{
-		//						Path: "/repo",
-		//						VolumeSource: core.VolumeSource{
-		//							HostPath: &core.HostPathVolumeSource{
-		//								Path: "/repo",
-		//							},
-		//						},
-		//					},
-		//				},
-		//			}
-		//		})
-		//
-		//		It("should run schedular successfully", func() {
-		//			By("Create Secret")
-		//			f.CreateSecret(secret)
-		//
-		//			// Create and wait for running MySQL
-		//			createAndWaitForRunning()
-		//
-		//			By("Count multiple Snapshot")
-		//			f.EventuallySnapshotCount(mysql.ObjectMeta).Should(matcher.MoreThan(3))
-		//
-		//			deleteTestResouce()
-		//		})
-		//	})
-		//
-		//	Context("With Update", func() {
-		//		It("should run schedular successfully", func() {
-		//			// Create and wait for running MySQL
-		//			createAndWaitForRunning()
-		//
-		//			By("Create Secret")
-		//			f.CreateSecret(secret)
-		//
-		//			By("Update mysql")
-		//			_, err = f.TryPatchMySQL(mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
-		//				in.Spec.BackupSchedule = &api.BackupScheduleSpec{
-		//					CronExpression: "@every 1m",
-		//					SnapshotStorageSpec: api.SnapshotStorageSpec{
-		//						StorageSecretName: secret.Name,
-		//						Local: &api.LocalSpec{
-		//							Path: "/repo",
-		//							VolumeSource: core.VolumeSource{
-		//								HostPath: &core.HostPathVolumeSource{
-		//									Path: "/repo",
-		//								},
-		//							},
-		//						},
-		//					},
-		//				}
-		//
-		//				return in
-		//			})
-		//			Expect(err).NotTo(HaveOccurred())
-		//
-		//			By("Count multiple Snapshot")
-		//			f.EventuallySnapshotCount(mysql.ObjectMeta).Should(matcher.MoreThan(3))
-		//
-		//			deleteTestResouce()
-		//		})
-		//	})
-		//})
+		Context("SnapshotScheduler", func() {
+			AfterEach(func() {
+				f.DeleteSecret(secret.ObjectMeta)
+			})
 
+			Context("With Startup", func() {
+
+				var shouldStartupSchedular = func() {
+					By("Create Secret")
+					f.CreateSecret(secret)
+
+					// Create and wait for running MySQL
+					createAndWaitForRunning()
+
+					By("Count multiple Snapshot")
+					f.EventuallySnapshotCount(mysql.ObjectMeta).Should(matcher.MoreThan(3))
+
+					deleteTestResource()
+				}
+
+				Context("with local", func() {
+					BeforeEach(func() {
+						secret = f.SecretForLocalBackend()
+						mysql.Spec.BackupSchedule = &api.BackupScheduleSpec{
+							CronExpression: "@every 1m",
+							SnapshotStorageSpec: api.SnapshotStorageSpec{
+								StorageSecretName: secret.Name,
+								Local: &api.LocalSpec{
+									Path: "/repo",
+									VolumeSource: core.VolumeSource{
+										HostPath: &core.HostPathVolumeSource{
+											Path: "/repo",
+										},
+									},
+								},
+							},
+						}
+					})
+
+					It("should run schedular successfully", shouldStartupSchedular)
+				})
+
+				Context("with GCS and PVC", func() {
+					BeforeEach(func() {
+						secret = f.SecretForGCSBackend()
+						mysql.Spec.BackupSchedule = &api.BackupScheduleSpec{
+							CronExpression: "@every 1m",
+							SnapshotStorageSpec: api.SnapshotStorageSpec{
+								StorageSecretName: secret.Name,
+								GCS: &api.GCSSpec{
+									Bucket: os.Getenv(GCS_BUCKET_NAME),
+								},
+							},
+						}
+						if f.StorageClass == "" {
+							skipMessage = "Missing StorageClassName. Provide as flag to test this."
+						}
+						mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+							Resources: core.ResourceRequirements{
+								Requests: core.ResourceList{
+									core.ResourceStorage: resource.MustParse("50Mi"),
+								},
+							},
+							StorageClassName: types.StringP(f.StorageClass),
+						}
+					})
+
+					It("should run schedular successfully", shouldStartupSchedular)
+				})
+			})
+
+			Context("With Update", func() {
+				BeforeEach(func() {
+					secret = f.SecretForLocalBackend()
+				})
+				It("should run schedular successfully", func() {
+					// Create and wait for running MySQL
+					createAndWaitForRunning()
+
+					By("Create Secret")
+					f.CreateSecret(secret)
+
+					By("Update mysql")
+					_, err = f.TryPatchMySQL(mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
+						in.Spec.BackupSchedule = &api.BackupScheduleSpec{
+							CronExpression: "@every 1m",
+							SnapshotStorageSpec: api.SnapshotStorageSpec{
+								StorageSecretName: secret.Name,
+								Local: &api.LocalSpec{
+									Path: "/repo",
+									VolumeSource: core.VolumeSource{
+										HostPath: &core.HostPathVolumeSource{
+											Path: "/repo",
+										},
+									},
+								},
+							},
+						}
+						return in
+					})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Count multiple Snapshot")
+					f.EventuallySnapshotCount(mysql.ObjectMeta).Should(matcher.MoreThan(3))
+
+					deleteTestResource()
+				})
+			})
+		})
 	})
 })

@@ -74,7 +74,6 @@ func (c *Controller) WipeOutDatabase(dormantDb *api.DormantDatabase) error {
 }
 
 func (c *Controller) deleteSecret(dormantDb *api.DormantDatabase) error {
-
 	var secretFound bool = false
 
 	dormantDatabaseSecret := dormantDb.Spec.Origin.Spec.MySQL.DatabaseSecret
