@@ -56,7 +56,7 @@ var _ = Describe("MySQL", func() {
 		f.EventuallyDormantDatabaseStatus(mysql.ObjectMeta).Should(matcher.HavePaused())
 
 		By("WipeOut mysql")
-		_, err := f.TryPatchDormantDatabase(mysql.ObjectMeta, func(in *api.DormantDatabase) *api.DormantDatabase {
+		_, err := f.PatchDormantDatabase(mysql.ObjectMeta, func(in *api.DormantDatabase) *api.DormantDatabase {
 			in.Spec.WipeOut = true
 			return in
 		})
@@ -109,7 +109,8 @@ var _ = Describe("MySQL", func() {
 			})
 		})
 
-		Context("DoNotPause", func() {
+		// Currently Not Available
+		XContext("DoNotPause", func() {
 			BeforeEach(func() {
 				mysql.Spec.DoNotPause = true
 			})
@@ -129,7 +130,7 @@ var _ = Describe("MySQL", func() {
 				f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
 
 				By("Update mysql to set DoNotPause=false")
-				f.TryPatchMySQL(mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
+				f.PatchMySQL(mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
 					in.Spec.DoNotPause = false
 					return in
 				})
@@ -186,9 +187,7 @@ var _ = Describe("MySQL", func() {
 					snapshot.Spec.Local = &api.LocalSpec{
 						Path: "/repo",
 						VolumeSource: core.VolumeSource{
-							HostPath: &core.HostPathVolumeSource{
-								Path: "/repo",
-							},
+							EmptyDir: &core.EmptyDirVolumeSource{},
 						},
 					}
 				})
@@ -272,7 +271,7 @@ var _ = Describe("MySQL", func() {
 						ScriptSource: &api.ScriptSourceSpec{
 							VolumeSource: core.VolumeSource{
 								GitRepo: &core.GitRepoVolumeSource{
-									Repository: "https://github.com/the-redback/mysql-init-script.git",
+									Repository: "https://github.com/kubedb/mysql-init-scripts.git",
 									Directory:  ".",
 								},
 							},
@@ -358,7 +357,7 @@ var _ = Describe("MySQL", func() {
 				By("Wait for mysql to be paused")
 				f.EventuallyDormantDatabaseStatus(mysql.ObjectMeta).Should(matcher.HavePaused())
 
-				_, err = f.TryPatchDormantDatabase(mysql.ObjectMeta, func(in *api.DormantDatabase) *api.DormantDatabase {
+				_, err = f.PatchDormantDatabase(mysql.ObjectMeta, func(in *api.DormantDatabase) *api.DormantDatabase {
 					in.Spec.Resume = true
 					return in
 				})
@@ -393,7 +392,7 @@ var _ = Describe("MySQL", func() {
 						ScriptSource: &api.ScriptSourceSpec{
 							VolumeSource: core.VolumeSource{
 								GitRepo: &core.GitRepoVolumeSource{
-									Repository: "https://github.com/the-redback/mysql-init-script.git",
+									Repository: "https://github.com/kubedb/mysql-init-scripts.git",
 									Directory:  ".",
 								},
 							},
@@ -439,7 +438,7 @@ var _ = Describe("MySQL", func() {
 							ScriptSource: &api.ScriptSourceSpec{
 								VolumeSource: core.VolumeSource{
 									GitRepo: &core.GitRepoVolumeSource{
-										Repository: "https://github.com/the-redback/mysql-init-script.git",
+										Repository: "https://github.com/kubedb/mysql-init-scripts.git",
 										Directory:  ".",
 									},
 								},
@@ -511,9 +510,7 @@ var _ = Describe("MySQL", func() {
 								Local: &api.LocalSpec{
 									Path: "/repo",
 									VolumeSource: core.VolumeSource{
-										HostPath: &core.HostPathVolumeSource{
-											Path: "/repo",
-										},
+										EmptyDir: &core.EmptyDirVolumeSource{},
 									},
 								},
 							},
@@ -564,7 +561,7 @@ var _ = Describe("MySQL", func() {
 					f.CreateSecret(secret)
 
 					By("Update mysql")
-					_, err = f.TryPatchMySQL(mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
+					_, err = f.PatchMySQL(mysql.ObjectMeta, func(in *api.MySQL) *api.MySQL {
 						in.Spec.BackupSchedule = &api.BackupScheduleSpec{
 							CronExpression: "@every 1m",
 							SnapshotStorageSpec: api.SnapshotStorageSpec{
@@ -572,9 +569,7 @@ var _ = Describe("MySQL", func() {
 								Local: &api.LocalSpec{
 									Path: "/repo",
 									VolumeSource: core.VolumeSource{
-										HostPath: &core.HostPathVolumeSource{
-											Path: "/repo",
-										},
+										EmptyDir: &core.EmptyDirVolumeSource{},
 									},
 								},
 							},
