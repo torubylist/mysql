@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 
+	"github.com/appscode/kutil/tools/analytics"
 	api "github.com/kubedb/apimachinery/apis/kubedb/v1alpha1"
 	"github.com/kubedb/apimachinery/pkg/storage"
 	batch "k8s.io/api/batch/v1"
@@ -62,8 +63,13 @@ func (c *Controller) createRestoreJob(mysql *api.MySQL, snapshot *api.Snapshot) 
 								fmt.Sprintf(`--folder=%s`, folderName),
 								fmt.Sprintf(`--snapshot=%s`, snapshot.Name),
 							},
+							Env: []core.EnvVar{
+								{
+									Name:  analytics.Key,
+									Value: c.opt.AnalyticsClientID,
+								},
+							},
 							Resources: snapshot.Spec.Resources,
-
 							VolumeMounts: []core.VolumeMount{
 								{
 									Name:      "secret",
@@ -170,6 +176,12 @@ func (c *Controller) getSnapshotterJob(snapshot *api.Snapshot) (*batch.Job, erro
 								fmt.Sprintf(`--bucket=%s`, bucket),
 								fmt.Sprintf(`--folder=%s`, folderName),
 								fmt.Sprintf(`--snapshot=%s`, snapshot.Name),
+							},
+							Env: []core.EnvVar{
+								{
+									Name:  analytics.Key,
+									Value: c.opt.AnalyticsClientID,
+								},
 							},
 							Resources: snapshot.Spec.Resources,
 							VolumeMounts: []core.VolumeMount{
