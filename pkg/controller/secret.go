@@ -18,6 +18,8 @@ const (
 
 	KeyMySQLUser     = "user"
 	KeyMySQLPassword = "password"
+
+	ExporterSecretPath = "/var/run/secrets/kubedb.com/"
 )
 
 func (c *Controller) ensureDatabaseSecret(mysql *api.MySQL) error {
