@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/appscode/go/types"
+	meta_util "github.com/appscode/kutil/meta"
 	api "github.com/kubedb/apimachinery/apis/kubedb/v1alpha1"
 	"github.com/kubedb/mysql/test/e2e/framework"
 	"github.com/kubedb/mysql/test/e2e/matcher"
@@ -105,7 +106,44 @@ var _ = Describe("MySQL", func() {
 						StorageClassName: types.StringP(f.StorageClass),
 					}
 				})
-				It("should run successfully", shouldSuccessfullyRunning)
+				It("should run successfully", func() {
+					if skipMessage != "" {
+						Skip(skipMessage)
+					}
+					// Create MySQL
+					createAndWaitForRunning()
+
+					By("Creating Table")
+					f.EventuallyCreateTable(mysql.ObjectMeta).Should(BeTrue())
+
+					By("Inserting Rows")
+					f.EventuallyInsertRow(mysql.ObjectMeta, 3).Should(BeTrue())
+
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+					By("Delete mysql")
+					err = f.DeleteMySQL(mysql.ObjectMeta)
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Wait for mysql to be paused")
+					f.EventuallyDormantDatabaseStatus(mysql.ObjectMeta).Should(matcher.HavePaused())
+
+					_, err = f.PatchDormantDatabase(mysql.ObjectMeta, func(in *api.DormantDatabase) *api.DormantDatabase {
+						in.Spec.Resume = true
+						return in
+					})
+					Expect(err).NotTo(HaveOccurred())
+
+					By("Wait for DormantDatabase to be deleted")
+					f.EventuallyDormantDatabase(mysql.ObjectMeta).Should(BeFalse())
+
+					By("Wait for Running mysql")
+					f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
+
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+				})
 			})
 		})
 
@@ -163,7 +201,7 @@ var _ = Describe("MySQL", func() {
 				f.CreateSnapshot(snapshot)
 
 				By("Check for Successed snapshot")
-				f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSuccessed))
+				f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSucceeded))
 
 				if !skipDataCheck {
 					By("Check for snapshot data")
@@ -265,6 +303,18 @@ var _ = Describe("MySQL", func() {
 		})
 
 		Context("Initialize", func() {
+			BeforeEach(func() {
+				if f.StorageClass != "" {
+					mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+						Resources: core.ResourceRequirements{
+							Requests: core.ResourceList{
+								core.ResourceStorage: resource.MustParse("50Mi"),
+							},
+						},
+						StorageClassName: types.StringP(f.StorageClass),
+					}
+				}
+			})
 			Context("With Script", func() {
 				BeforeEach(func() {
 					mysql.Spec.Init = &api.InitSpec{
@@ -279,7 +329,17 @@ var _ = Describe("MySQL", func() {
 					}
 				})
 
-				It("should run successfully", shouldSuccessfullyRunning)
+				It("should run successfully", func() {
+					// Create Postgres
+					createAndWaitForRunning()
+
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+					// Delete test resource
+					deleteTestResource()
+				})
+
 			})
 
 			Context("With Snapshot", func() {
@@ -291,6 +351,15 @@ var _ = Describe("MySQL", func() {
 					// Create and wait for running MySQL
 					createAndWaitForRunning()
 
+					By("Creating Table")
+					f.EventuallyCreateTable(mysql.ObjectMeta).Should(BeTrue())
+
+					By("Inserting Row")
+					f.EventuallyInsertRow(mysql.ObjectMeta, 3).Should(BeTrue())
+
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
 					By("Create Secret")
 					f.CreateSecret(secret)
 
@@ -298,7 +367,7 @@ var _ = Describe("MySQL", func() {
 					f.CreateSnapshot(snapshot)
 
 					By("Check for Successed snapshot")
-					f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSuccessed))
+					f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSucceeded))
 
 					By("Check for snapshot data")
 					f.EventuallySnapshotDataFound(snapshot).Should(BeTrue())
@@ -308,6 +377,16 @@ var _ = Describe("MySQL", func() {
 
 					By("Create mysql from snapshot")
 					mysql = f.MySQL()
+					if f.StorageClass != "" {
+						mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+							Resources: core.ResourceRequirements{
+								Requests: core.ResourceList{
+									core.ResourceStorage: resource.MustParse("50Mi"),
+								},
+							},
+							StorageClassName: types.StringP(f.StorageClass),
+						}
+					}
 					mysql.Spec.Init = &api.InitSpec{
 						SnapshotSource: &api.SnapshotSourceSpec{
 							Namespace: snapshot.Namespace,
@@ -317,6 +396,9 @@ var _ = Describe("MySQL", func() {
 
 					// Create and wait for running MySQL
 					createAndWaitForRunning()
+
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
 
 					// Delete test resource
 					deleteTestResource()
@@ -341,14 +423,32 @@ var _ = Describe("MySQL", func() {
 		})
 
 		Context("Resume", func() {
-			var usedInitSpec bool
+			var usedInitScript bool
+			var usedInitSnapshot bool
 			BeforeEach(func() {
-				usedInitSpec = false
+				usedInitScript = false
+				usedInitSnapshot = false
+				if f.StorageClass == "" {
+					skipMessage = "Missing StorageClassName. Provide as flag to test this."
+				}
+				mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+					Resources: core.ResourceRequirements{
+						Requests: core.ResourceList{
+							core.ResourceStorage: resource.MustParse("50Mi"),
+						},
+					},
+					StorageClassName: types.StringP(f.StorageClass),
+				}
 			})
 
 			var shouldResumeSuccessfully = func() {
 				// Create and wait for running MySQL
 				createAndWaitForRunning()
+
+				if usedInitScript {
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+				}
 
 				By("Delete mysql")
 				f.DeleteMySQL(mysql.ObjectMeta)
@@ -368,12 +468,23 @@ var _ = Describe("MySQL", func() {
 				By("Wait for Running mysql")
 				f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
 
+				if usedInitScript {
+					By("Checking Row Count of Table")
+					f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+				}
+
 				mysql, err = f.GetMySQL(mysql.ObjectMeta)
 				Expect(err).NotTo(HaveOccurred())
 
-				if usedInitSpec {
-					Expect(mysql.Spec.Init).Should(BeNil())
-					Expect(mysql.Annotations[api.GenericInitSpec]).ShouldNot(BeEmpty())
+				if usedInitScript {
+					Expect(mysql.Spec.Init).ShouldNot(BeNil())
+					_, err := meta_util.GetString(mysql.Annotations, api.AnnotationInitialized)
+					Expect(err).To(HaveOccurred())
+				}
+				if usedInitSnapshot {
+					Expect(mysql.Spec.Init).ShouldNot(BeNil())
+					_, err := meta_util.GetString(mysql.Annotations, api.AnnotationInitialized)
+					Expect(err).NotTo(HaveOccurred())
 				}
 
 				// Delete test resource
@@ -386,7 +497,7 @@ var _ = Describe("MySQL", func() {
 
 			Context("With Init", func() {
 				BeforeEach(func() {
-					usedInitSpec = true
+					usedInitScript = true
 					mysql.Spec.Init = &api.InitSpec{
 						ScriptSource: &api.ScriptSourceSpec{
 							VolumeSource: core.VolumeSource{
@@ -430,9 +541,10 @@ var _ = Describe("MySQL", func() {
 					// Delete test resource
 					deleteTestResource()
 				})
-				Context("Multiple times with init", func() {
+
+				Context("with init", func() {
 					BeforeEach(func() {
-						usedInitSpec = true
+						usedInitScript = true
 						mysql.Spec.Init = &api.InitSpec{
 							ScriptSource: &api.ScriptSourceSpec{
 								VolumeSource: core.VolumeSource{
@@ -449,8 +561,182 @@ var _ = Describe("MySQL", func() {
 						// Create and wait for running MySQL
 						createAndWaitForRunning()
 
+						By("Checking Row Count of Table")
+						f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+						By("Delete mysql")
+						f.DeleteMySQL(mysql.ObjectMeta)
+
+						By("Wait for mysql to be paused")
+						f.EventuallyDormantDatabaseStatus(mysql.ObjectMeta).Should(matcher.HavePaused())
+
+						// Create MySQL object again to resume it
+						By("Create MySQL: " + mysql.Name)
+						err = f.CreateMySQL(mysql)
+						Expect(err).NotTo(HaveOccurred())
+
+						By("Wait for DormantDatabase to be deleted")
+						f.EventuallyDormantDatabase(mysql.ObjectMeta).Should(BeFalse())
+
+						By("Wait for Running mysql")
+						f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
+
+						_, err := f.GetMySQL(mysql.ObjectMeta)
+						Expect(err).NotTo(HaveOccurred())
+
+						By("Checking Row Count of Table")
+						f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+						// Delete test resource
+						deleteTestResource()
+						if usedInitScript {
+							Expect(mysql.Spec.Init).ShouldNot(BeNil())
+							if usedInitScript {
+								Expect(mysql.Spec.Init).ShouldNot(BeNil())
+								_, err := meta_util.GetString(mysql.Annotations, api.AnnotationInitialized)
+								Expect(err).To(HaveOccurred())
+							}
+						}
+					})
+				})
+
+				Context("With Snapshot Init", func() {
+					var skipDataCheck bool
+					AfterEach(func() {
+						f.DeleteSecret(secret.ObjectMeta)
+					})
+					BeforeEach(func() {
+						skipDataCheck = false
+						usedInitSnapshot = true
+						secret = f.SecretForGCSBackend()
+						snapshot.Spec.StorageSecretName = secret.Name
+						snapshot.Spec.GCS = &api.GCSSpec{
+							Bucket: os.Getenv(GCS_BUCKET_NAME),
+						}
+						snapshot.Spec.DatabaseName = mysql.Name
+					})
+					It("should resume successfully", func() {
+						// Create and wait for running MySQL
+						createAndWaitForRunning()
+
+						By("Creating Table")
+						f.EventuallyCreateTable(mysql.ObjectMeta).Should(BeTrue())
+
+						By("Inserting Row")
+						f.EventuallyInsertRow(mysql.ObjectMeta, 3).Should(BeTrue())
+
+						By("Checking Row Count of Table")
+						f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+						By("Create Secret")
+						f.CreateSecret(secret)
+
+						By("Create Snapshot")
+						f.CreateSnapshot(snapshot)
+
+						By("Check for Successed snapshot")
+						f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSucceeded))
+
+						By("Check for snapshot data")
+						f.EventuallySnapshotDataFound(snapshot).Should(BeTrue())
+
+						oldMySQL, err := f.GetMySQL(mysql.ObjectMeta)
+						Expect(err).NotTo(HaveOccurred())
+
+						By("Create mysql from snapshot")
+						mysql = f.MySQL()
+						if f.StorageClass != "" {
+							mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+								Resources: core.ResourceRequirements{
+									Requests: core.ResourceList{
+										core.ResourceStorage: resource.MustParse("50Mi"),
+									},
+								},
+								StorageClassName: types.StringP(f.StorageClass),
+							}
+						}
+						mysql.Spec.Init = &api.InitSpec{
+							SnapshotSource: &api.SnapshotSourceSpec{
+								Namespace: snapshot.Namespace,
+								Name:      snapshot.Name,
+							},
+						}
+
+						// Create and wait for running MySQL
+						createAndWaitForRunning()
+
+						By("Checking Row Count of Table")
+						f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+						By("Delete mysql")
+						f.DeleteMySQL(mysql.ObjectMeta)
+
+						By("Wait for mysql to be paused")
+						f.EventuallyDormantDatabaseStatus(mysql.ObjectMeta).Should(matcher.HavePaused())
+
+						// Create MySQL object again to resume it
+						By("Create MySQL: " + mysql.Name)
+						err = f.CreateMySQL(mysql)
+						Expect(err).NotTo(HaveOccurred())
+
+						By("Wait for DormantDatabase to be deleted")
+						f.EventuallyDormantDatabase(mysql.ObjectMeta).Should(BeFalse())
+
+						By("Wait for Running mysql")
+						f.EventuallyMySQLRunning(mysql.ObjectMeta).Should(BeTrue())
+
+						mysql, err = f.GetMySQL(mysql.ObjectMeta)
+						Expect(err).NotTo(HaveOccurred())
+
+						By("Checking Row Count of Table")
+						f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+						if usedInitSnapshot {
+							Expect(mysql.Spec.Init).ShouldNot(BeNil())
+							_, err := meta_util.GetString(mysql.Annotations, api.AnnotationInitialized)
+							Expect(err).NotTo(HaveOccurred())
+						}
+
+						// Delete test resource
+						deleteTestResource()
+						mysql = oldMySQL
+						// Delete test resource
+						deleteTestResource()
+						if !skipDataCheck {
+							By("Check for snapshot data")
+							f.EventuallySnapshotDataFound(snapshot).Should(BeFalse())
+						}
+					})
+				})
+
+				Context("Multiple times with init", func() {
+					BeforeEach(func() {
+						usedInitScript = true
+						mysql.Spec.Init = &api.InitSpec{
+							ScriptSource: &api.ScriptSourceSpec{
+								VolumeSource: core.VolumeSource{
+									GitRepo: &core.GitRepoVolumeSource{
+										Repository: "https://github.com/kubedb/mysql-init-scripts.git",
+										Directory:  ".",
+									},
+								},
+							},
+						}
+					})
+
+					It("should resume DormantDatabase successfully", func() {
+						// Create and wait for running MySQL
+						createAndWaitForRunning()
+
+						By("Checking Row Count of Table")
+						f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
 						for i := 0; i < 3; i++ {
 							By(fmt.Sprintf("%v-th", i+1) + " time running.")
+
+							By("Checking Row Count of Table")
+							f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
 							By("Delete mysql")
 							f.DeleteMySQL(mysql.ObjectMeta)
 
@@ -470,6 +756,15 @@ var _ = Describe("MySQL", func() {
 
 							_, err := f.GetMySQL(mysql.ObjectMeta)
 							Expect(err).NotTo(HaveOccurred())
+
+							By("Checking Row Count of Table")
+							f.EventuallyCountRow(mysql.ObjectMeta).Should(Equal(3))
+
+							if usedInitScript {
+								Expect(mysql.Spec.Init).ShouldNot(BeNil())
+								_, err := meta_util.GetString(mysql.Annotations, api.AnnotationInitialized)
+								Expect(err).To(HaveOccurred())
+							}
 						}
 
 						// Delete test resource

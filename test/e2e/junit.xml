@@ -1,8 +1,2 @@
 <?xml version="1.0" encoding="UTF-8"?>
-  <testsuite tests="3" failures="0" time="188.457429864">
-      <testcase name="MySQL Test General - should run successfully" classname="e2e Suite" time="86.90225169"></testcase>
-      <testcase name="MySQL Test General With PVC should run successfully" classname="e2e Suite" time="86.903635198"></testcase>
-      <testcase name="MySQL Test DoNotPause should work successfully" classname="e2e Suite" time="0">
-          <skipped></skipped>
-      </testcase>
-  </testsuite>
+  <testsuite tests="1" failures="0" time="12.342596373"></testsuite>
