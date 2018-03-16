@@ -1,6 +1,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubedb/mysql)](https://goreportcard.com/report/github.com/kubedb/mysql)
-
-[Website](https://kubedb.com) • [Slack](http://slack.kubernetes.io) • [Twitter](https://twitter.com/KubeDB)
+[![Build Status](https://travis-ci.org/kubedb/mysql.svg?branch=master)](https://travis-ci.org/kubedb/mysql)
+[![codecov](https://codecov.io/gh/kubedb/mysql/branch/master/graph/badge.svg)](https://codecov.io/gh/kubedb/mysql)
+[![Docker Pulls](https://img.shields.io/docker/pulls/kubedb/mysql.svg)](https://hub.docker.com/r/kubedb/mysql/)
+[![Slack](http://slack.kubernetes.io/badge.svg)](http://slack.kubernetes.io)
+[![Twitter](https://img.shields.io/twitter/follow/kubedb.svg?style=social&logo=twitter&label=Follow)](https://twitter.com/intent/follow?screen_name=kubedb)
 
 # mysql
 Run MySQL in Kubernetes
