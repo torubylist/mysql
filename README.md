@@ -1,7 +1,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubedb/mysql)](https://goreportcard.com/report/github.com/kubedb/mysql)
 [![Build Status](https://travis-ci.org/kubedb/mysql.svg?branch=master)](https://travis-ci.org/kubedb/mysql)
 [![codecov](https://codecov.io/gh/kubedb/mysql/branch/master/graph/badge.svg)](https://codecov.io/gh/kubedb/mysql)
-[![Slack](http://slack.kubernetes.io/badge.svg)](http://slack.kubernetes.io)
+[![Slack](http://slack.kubernetes.io/badge.svg)](http://slack.kubernetes.io/#kubedb)
 [![mailing list](https://img.shields.io/badge/mailing_list-join-blue.svg)](https://groups.google.com/forum/#!forum/kubedb)
 [![Twitter](https://img.shields.io/twitter/follow/kubedb.svg?style=social&logo=twitter&label=Follow)](https://twitter.com/intent/follow?screen_name=kubedb)
 
