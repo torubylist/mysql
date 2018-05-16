@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-  <testsuite tests="2" failures="0" time="1204.057668369">
+  <testsuite tests="1" failures="0" time="975.828351266">
       <testcase name="MySQL Test General Without PVC should run successfully" classname="e2e Suite" time="0">
           <skipped></skipped>
       </testcase>
-      <testcase name="MySQL Test General With PVC should run successfully" classname="e2e Suite" time="0">
-          <skipped></skipped>
-      </testcase>
+      <testcase name="MySQL Test General With PVC should run successfully" classname="e2e Suite" time="964.037504002"></testcase>
       <testcase name="MySQL Test DoNotPause should work successfully" classname="e2e Suite" time="0">
           <skipped></skipped>
       </testcase>
-      <testcase name="MySQL Test Snapshot In Local should take Snapshot successfully" classname="e2e Suite" time="406.749797133"></testcase>
+      <testcase name="MySQL Test Snapshot In Local should take Snapshot successfully" classname="e2e Suite" time="0">
+          <skipped></skipped>
+      </testcase>
       <testcase name="MySQL Test Snapshot In Local Without PVC should run successfully" classname="e2e Suite" time="0">
           <skipped></skipped>
       </testcase>
@@ -34,7 +34,9 @@
       <testcase name="MySQL Test Initialize With Script should run successfully" classname="e2e Suite" time="0">
           <skipped></skipped>
       </testcase>
-      <testcase name="MySQL Test Initialize With Snapshot should run successfully" classname="e2e Suite" time="777.321551212"></testcase>
+      <testcase name="MySQL Test Initialize With Snapshot should run successfully" classname="e2e Suite" time="0">
+          <skipped></skipped>
+      </testcase>
       <testcase name="MySQL Test Resume Super Fast User - Create-Delete-Create-Delete-Create  should resume DormantDatabase successfully" classname="e2e Suite" time="0">
           <skipped></skipped>
       </testcase>
