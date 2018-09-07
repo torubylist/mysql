@@ -101,17 +101,10 @@ func setDefaultValues(client kubernetes.Interface, extClient cs.Interface, mysql
 		return nil, errors.New(`'spec.version' is missing`)
 	}
 
-	if mysql.Spec.StorageType == "" {
-		mysql.Spec.StorageType = api.StorageTypeDurable
-	}
-
-	if mysql.Spec.TerminationPolicy == "" {
-		mysql.Spec.TerminationPolicy = api.TerminationPolicyPause
-	}
-
 	if mysql.Spec.Replicas == nil {
 		mysql.Spec.Replicas = types.Int32P(1)
 	}
+	mysql.SetDefaults()
 
 	if err := setDefaultsFromDormantDB(extClient, mysql); err != nil {
 		return nil, err
@@ -120,8 +113,6 @@ func setDefaultValues(client kubernetes.Interface, extClient cs.Interface, mysql
 	// If monitoring spec is given without port,
 	// set default Listening port
 	setMonitoringPort(mysql)
-
-	mysql.Migrate()
 
 	return mysql, nil
 }
@@ -144,6 +135,7 @@ func setDefaultsFromDormantDB(extClient cs.Interface, mysql *api.MySQL) error {
 
 	// Check Origin Spec
 	ddbOriginSpec := dormantDb.Spec.Origin.Spec.MySQL
+	ddbOriginSpec.SetDefaults()
 
 	// If DatabaseSecret of new object is not given,
 	// Take dormantDatabaseSecretName
