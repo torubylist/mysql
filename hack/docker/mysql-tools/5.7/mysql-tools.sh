@@ -71,6 +71,10 @@ while test $# -gt 0; do
       export ENABLE_ANALYTICS=$(echo $1 | sed -e 's/^[^=]*=//g')
       shift
       ;;
+    --)
+      shift
+      break
+      ;;
     *)
       show_help
       exit 1
@@ -97,12 +101,12 @@ rm -rf *
 
 case "$op" in
   backup)
-    mysqldump -u "$DB_USER" -p"$DB_PASSWORD" -h "$DB_HOST" --all-databases >dumpfile.sql
+    mysqldump -u ${DB_USER} --password=${DB_PASSWORD} -h ${DB_HOST} "$@" >dumpfile.sql
     osm push --enable-analytics="$ENABLE_ANALYTICS" --osmconfig="$OSM_CONFIG_FILE" -c "$DB_BUCKET" "$DB_DATA_DIR" "$DB_FOLDER/$DB_SNAPSHOT"
     ;;
   restore)
     osm pull --enable-analytics="$ENABLE_ANALYTICS" --osmconfig="$OSM_CONFIG_FILE" -c "$DB_BUCKET" "$DB_FOLDER/$DB_SNAPSHOT" "$DB_DATA_DIR"
-    mysql -u "$DB_USER" -p"$DB_PASSWORD" -h "$DB_HOST" -f <dumpfile.sql
+    mysql -u "$DB_USER" --password="${DB_PASSWORD}" -h "$DB_HOST" "$@" -f <dumpfile.sql
     ;;
   *)
     (10)
