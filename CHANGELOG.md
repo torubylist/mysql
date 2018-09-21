@@ -1,11 +1,75 @@
 # Change Log
 
-## [Unreleased](https://github.com/kubedb/mysql/tree/HEAD)
+## [0.2.0-beta.0](https://github.com/kubedb/mysql/tree/0.2.0-beta.0) (2018-09-20)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.1.0...0.2.0-beta.0)
 
-[Full Changelog](https://github.com/kubedb/mysql/compare/0.1.0-beta.2...HEAD)
+**Fixed bugs:**
+
+- Search used secrets within same namespace of DB object [\#89](https://github.com/kubedb/mysql/pull/89) ([tamalsaha](https://github.com/tamalsaha))
 
 **Merged pull requests:**
 
+-  Pass extra args to tools.sh [\#93](https://github.com/kubedb/mysql/pull/93) ([the-redback](https://github.com/the-redback))
+- Don't try to wipe out Snapshot data for Local backend [\#92](https://github.com/kubedb/mysql/pull/92) ([hossainemruz](https://github.com/hossainemruz))
+- Add missing alt-tag docker folder mysql-tools images [\#91](https://github.com/kubedb/mysql/pull/91) ([hossainemruz](https://github.com/hossainemruz))
+- Use suffix for updated DBImage & Stop working for deprecated \*Versions [\#90](https://github.com/kubedb/mysql/pull/90) ([hossainemruz](https://github.com/hossainemruz))
+- Support Termination Policy [\#88](https://github.com/kubedb/mysql/pull/88) ([hossainemruz](https://github.com/hossainemruz))
+- Revendor k8s.io/apiserver [\#87](https://github.com/kubedb/mysql/pull/87) ([tamalsaha](https://github.com/tamalsaha))
+- Revendor kubernetes-1.11.3 [\#86](https://github.com/kubedb/mysql/pull/86) ([tamalsaha](https://github.com/tamalsaha))
+- Support UpdateStrategy [\#84](https://github.com/kubedb/mysql/pull/84) ([tamalsaha](https://github.com/tamalsaha))
+- Add TerminationPolicy for databases [\#83](https://github.com/kubedb/mysql/pull/83) ([tamalsaha](https://github.com/tamalsaha))
+- Revendor api [\#82](https://github.com/kubedb/mysql/pull/82) ([tamalsaha](https://github.com/tamalsaha))
+- Use IntHash as status.observedGeneration [\#81](https://github.com/kubedb/mysql/pull/81) ([tamalsaha](https://github.com/tamalsaha))
+- fix github status [\#80](https://github.com/kubedb/mysql/pull/80) ([tahsinrahman](https://github.com/tahsinrahman))
+- update pipeline [\#79](https://github.com/kubedb/mysql/pull/79) ([tahsinrahman](https://github.com/tahsinrahman))
+- Fix E2E test for minikube [\#78](https://github.com/kubedb/mysql/pull/78) ([the-redback](https://github.com/the-redback))
+- Update pipeline [\#77](https://github.com/kubedb/mysql/pull/77) ([tahsinrahman](https://github.com/tahsinrahman))
+- Migrate MySQL [\#75](https://github.com/kubedb/mysql/pull/75) ([tamalsaha](https://github.com/tamalsaha))
+- Use official exporter image [\#74](https://github.com/kubedb/mysql/pull/74) ([the-redback](https://github.com/the-redback))
+- Update status.ObservedGeneration for failure phase [\#73](https://github.com/kubedb/mysql/pull/73) ([the-redback](https://github.com/the-redback))
+- Keep track of ObservedGenerationHash [\#72](https://github.com/kubedb/mysql/pull/72) ([tamalsaha](https://github.com/tamalsaha))
+- Use NewObservableHandler [\#71](https://github.com/kubedb/mysql/pull/71) ([tamalsaha](https://github.com/tamalsaha))
+- Fix uninstall for concourse [\#70](https://github.com/kubedb/mysql/pull/70) ([tahsinrahman](https://github.com/tahsinrahman))
+- Fix uninstall for concourse [\#69](https://github.com/kubedb/mysql/pull/69) ([tahsinrahman](https://github.com/tahsinrahman))
+- Revise immutable spec fields [\#68](https://github.com/kubedb/mysql/pull/68) ([tamalsaha](https://github.com/tamalsaha))
+- Support passing args via PodTemplate [\#67](https://github.com/kubedb/mysql/pull/67) ([tamalsaha](https://github.com/tamalsaha))
+- Introduce storageType : ephemeral [\#66](https://github.com/kubedb/mysql/pull/66) ([tamalsaha](https://github.com/tamalsaha))
+- Revendor api [\#65](https://github.com/kubedb/mysql/pull/65) ([tamalsaha](https://github.com/tamalsaha))
+- Keep track of observedGeneration in status [\#64](https://github.com/kubedb/mysql/pull/64) ([tamalsaha](https://github.com/tamalsaha))
+- Add support for running tests on cncf cluster [\#63](https://github.com/kubedb/mysql/pull/63) ([tahsinrahman](https://github.com/tahsinrahman))
+-  Separate StatsService for monitoring [\#62](https://github.com/kubedb/mysql/pull/62) ([the-redback](https://github.com/the-redback))
+-  Use MySQLVersion for MySQL images [\#61](https://github.com/kubedb/mysql/pull/61) ([the-redback](https://github.com/the-redback))
+- Use updated crd spec [\#60](https://github.com/kubedb/mysql/pull/60) ([tamalsaha](https://github.com/tamalsaha))
+- Rename OffshootLabels to OffshootSelectors [\#59](https://github.com/kubedb/mysql/pull/59) ([tamalsaha](https://github.com/tamalsaha))
+- Revendor api [\#58](https://github.com/kubedb/mysql/pull/58) ([tamalsaha](https://github.com/tamalsaha))
+- Use kmodules monitoring and objectstore api [\#57](https://github.com/kubedb/mysql/pull/57) ([tamalsaha](https://github.com/tamalsaha))
+- Refactor concourse scripts [\#56](https://github.com/kubedb/mysql/pull/56) ([tahsinrahman](https://github.com/tahsinrahman))
+- Fix command `./hack/make.py test e2e` [\#55](https://github.com/kubedb/mysql/pull/55) ([the-redback](https://github.com/the-redback))
+- Set generated binary name to my-operator [\#54](https://github.com/kubedb/mysql/pull/54) ([tamalsaha](https://github.com/tamalsaha))
+- Don't add admission/v1beta1 group as a prioritized version [\#53](https://github.com/kubedb/mysql/pull/53) ([tamalsaha](https://github.com/tamalsaha))
+- Support custom configuration [\#52](https://github.com/kubedb/mysql/pull/52) ([hossainemruz](https://github.com/hossainemruz))
+- Format shell script [\#51](https://github.com/kubedb/mysql/pull/51) ([tamalsaha](https://github.com/tamalsaha))
+- Enable status subresource for crds [\#50](https://github.com/kubedb/mysql/pull/50) ([tamalsaha](https://github.com/tamalsaha))
+- Update client-go to v8.0.0 [\#49](https://github.com/kubedb/mysql/pull/49) ([tamalsaha](https://github.com/tamalsaha))
+- Fix travis build [\#48](https://github.com/kubedb/mysql/pull/48) ([hossainemruz](https://github.com/hossainemruz))
+- Updated osm version to 0.7.1 [\#47](https://github.com/kubedb/mysql/pull/47) ([the-redback](https://github.com/the-redback))
+- Support ENV variables in CRDs [\#46](https://github.com/kubedb/mysql/pull/46) ([hossainemruz](https://github.com/hossainemruz))
+
+## [0.1.0](https://github.com/kubedb/mysql/tree/0.1.0) (2018-06-12)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.1.0-rc.0...0.1.0)
+
+**Merged pull requests:**
+
+- Fixed missing error return [\#45](https://github.com/kubedb/mysql/pull/45) ([the-redback](https://github.com/the-redback))
+- Revendor dependencies [\#44](https://github.com/kubedb/mysql/pull/44) ([tamalsaha](https://github.com/tamalsaha))
+
+## [0.1.0-rc.0](https://github.com/kubedb/mysql/tree/0.1.0-rc.0) (2018-05-29)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.1.0-beta.2...0.1.0-rc.0)
+
+**Merged pull requests:**
+
+- Fix release script [\#43](https://github.com/kubedb/mysql/pull/43) ([tamalsaha](https://github.com/tamalsaha))
+- Add changelog [\#42](https://github.com/kubedb/mysql/pull/42) ([tamalsaha](https://github.com/tamalsaha))
 - Concourse [\#41](https://github.com/kubedb/mysql/pull/41) ([tahsinrahman](https://github.com/tahsinrahman))
 - Fixed kubeconfig plugin for Cloud Providers && Storage is required for MySQL [\#40](https://github.com/kubedb/mysql/pull/40) ([the-redback](https://github.com/the-redback))
 - Remove lost+found directory before initializing mysql [\#39](https://github.com/kubedb/mysql/pull/39) ([the-redback](https://github.com/the-redback))
@@ -50,7 +114,6 @@
 
 - Rename ms-operator to my-operator [\#13](https://github.com/kubedb/mysql/pull/13) ([tamalsaha](https://github.com/tamalsaha))
 - Fix Analytics and pass client-id as ENV to Snapshot Job [\#12](https://github.com/kubedb/mysql/pull/12) ([the-redback](https://github.com/the-redback))
-- update docker image validation [\#11](https://github.com/kubedb/mysql/pull/11) ([the-redback](https://github.com/the-redback))
 - Add docker-registry and WorkQueue  [\#10](https://github.com/kubedb/mysql/pull/10) ([the-redback](https://github.com/the-redback))
 - Set client id for analytics [\#9](https://github.com/kubedb/mysql/pull/9) ([tamalsaha](https://github.com/tamalsaha))
 - Fix CRD Registration [\#8](https://github.com/kubedb/mysql/pull/8) ([the-redback](https://github.com/the-redback))
