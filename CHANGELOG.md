@@ -1,5 +1,33 @@
 # Change Log
 
+## [0.2.0-rc.0](https://github.com/kubedb/mysql/tree/0.2.0-rc.0) (2018-10-15)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-beta.1...0.2.0-rc.0)
+
+**Merged pull requests:**
+
+- Support custom user & passowrd for backup [\#111](https://github.com/kubedb/mysql/pull/111) ([hossainemruz](https://github.com/hossainemruz))
+- Support providing resources for monitoring container [\#110](https://github.com/kubedb/mysql/pull/110) ([tamalsaha](https://github.com/tamalsaha))
+- Update kubernetes client libraries to 1.12.0 [\#109](https://github.com/kubedb/mysql/pull/109) ([tamalsaha](https://github.com/tamalsaha))
+- Add validation webhook xray [\#108](https://github.com/kubedb/mysql/pull/108) ([tamalsaha](https://github.com/tamalsaha))
+- Various Fixes [\#107](https://github.com/kubedb/mysql/pull/107) ([hossainemruz](https://github.com/hossainemruz))
+- Merge ports from service template [\#105](https://github.com/kubedb/mysql/pull/105) ([tamalsaha](https://github.com/tamalsaha))
+- Replace doNotPause with TerminationPolicy = DoNotTerminate [\#104](https://github.com/kubedb/mysql/pull/104) ([tamalsaha](https://github.com/tamalsaha))
+- Pass resources to NamespaceValidator [\#103](https://github.com/kubedb/mysql/pull/103) ([tamalsaha](https://github.com/tamalsaha))
+- Various fixes [\#102](https://github.com/kubedb/mysql/pull/102) ([tamalsaha](https://github.com/tamalsaha))
+- Support Livecycle hook and container probes [\#101](https://github.com/kubedb/mysql/pull/101) ([tamalsaha](https://github.com/tamalsaha))
+- Check if Kubernetes version is supported before running operator [\#100](https://github.com/kubedb/mysql/pull/100) ([tamalsaha](https://github.com/tamalsaha))
+- Update package alias [\#99](https://github.com/kubedb/mysql/pull/99) ([tamalsaha](https://github.com/tamalsaha))
+
+## [0.2.0-beta.1](https://github.com/kubedb/mysql/tree/0.2.0-beta.1) (2018-09-30)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-beta.0...0.2.0-beta.1)
+
+**Merged pull requests:**
+
+- Revendor api [\#98](https://github.com/kubedb/mysql/pull/98) ([tamalsaha](https://github.com/tamalsaha))
+- Fix tests [\#97](https://github.com/kubedb/mysql/pull/97) ([tamalsaha](https://github.com/tamalsaha))
+- Revendor api for catalog apigroup [\#96](https://github.com/kubedb/mysql/pull/96) ([tamalsaha](https://github.com/tamalsaha))
+- Use --pull flag with docker build \(\#20\) [\#95](https://github.com/kubedb/mysql/pull/95) ([tamalsaha](https://github.com/tamalsaha))
+
 ## [0.2.0-beta.0](https://github.com/kubedb/mysql/tree/0.2.0-beta.0) (2018-09-20)
 [Full Changelog](https://github.com/kubedb/mysql/compare/0.1.0...0.2.0-beta.0)
 
