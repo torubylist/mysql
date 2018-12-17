@@ -1,5 +1,37 @@
 # Change Log
 
+## [0.2.0](https://github.com/kubedb/mysql/tree/0.2.0) (2018-12-17)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-rc.2...0.2.0)
+
+**Merged pull requests:**
+
+- Reuse event recorder [\#125](https://github.com/kubedb/mysql/pull/125) ([tamalsaha](https://github.com/tamalsaha))
+- Revendor dependencies [\#124](https://github.com/kubedb/mysql/pull/124) ([tamalsaha](https://github.com/tamalsaha))
+-  OSM binary upgraded in mysql-tools [\#123](https://github.com/kubedb/mysql/pull/123) ([the-redback](https://github.com/the-redback))
+- Test for faulty snapshot [\#122](https://github.com/kubedb/mysql/pull/122) ([the-redback](https://github.com/the-redback))
+
+## [0.2.0-rc.2](https://github.com/kubedb/mysql/tree/0.2.0-rc.2) (2018-12-06)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-rc.1...0.2.0-rc.2)
+
+**Merged pull requests:**
+
+- Upgrade database secret keys [\#121](https://github.com/kubedb/mysql/pull/121) ([the-redback](https://github.com/the-redback))
+- Ignore mutation of fields to default values during update [\#120](https://github.com/kubedb/mysql/pull/120) ([tamalsaha](https://github.com/tamalsaha))
+- Support configuration options for exporter sidecar [\#119](https://github.com/kubedb/mysql/pull/119) ([tamalsaha](https://github.com/tamalsaha))
+- Use flags.DumpAll [\#118](https://github.com/kubedb/mysql/pull/118) ([tamalsaha](https://github.com/tamalsaha))
+
+## [0.2.0-rc.1](https://github.com/kubedb/mysql/tree/0.2.0-rc.1) (2018-12-02)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-rc.0...0.2.0-rc.1)
+
+**Merged pull requests:**
+
+- Apply cleanup [\#117](https://github.com/kubedb/mysql/pull/117) ([tamalsaha](https://github.com/tamalsaha))
+- Set periodic analytics [\#116](https://github.com/kubedb/mysql/pull/116) ([tamalsaha](https://github.com/tamalsaha))
+- Introduce AppBinding support [\#115](https://github.com/kubedb/mysql/pull/115) ([the-redback](https://github.com/the-redback))
+- Fix Analytics [\#114](https://github.com/kubedb/mysql/pull/114) ([the-redback](https://github.com/the-redback))
+- Error out from cron job for deprecated dbversion [\#113](https://github.com/kubedb/mysql/pull/113) ([the-redback](https://github.com/the-redback))
+- Add CRDS without observation when operator starts [\#112](https://github.com/kubedb/mysql/pull/112) ([the-redback](https://github.com/the-redback))
+
 ## [0.2.0-rc.0](https://github.com/kubedb/mysql/tree/0.2.0-rc.0) (2018-10-15)
 [Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-beta.1...0.2.0-rc.0)
 
