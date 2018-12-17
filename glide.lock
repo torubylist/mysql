@@ -1,5 +1,5 @@
-hash: 7b9119f6354bedc67ea5366d9b29f328c00d748da9c64f1ba84aaa21666a818a
-updated: 2018-12-14T16:13:15.090593501-08:00
+hash: ce680ffc6de8525a20f3c5583da46e607cc745e3fb98cac3bf6697d275869981
+updated: 2018-12-16T18:38:36.038186119-08:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -282,7 +282,7 @@ imports:
 - name: github.com/google/btree
   version: 7d79101e329e5a3adf994758c578dab82b90c017
 - name: github.com/google/go-cmp
-  version: 2248b49eaa8e1c8c0963ee77b40841adbc19d4ca
+  version: 3af367b6b30c263d47e8895973edcca9a49cf029
   subpackages:
   - cmp
   - cmp/internal/diff
@@ -347,7 +347,7 @@ imports:
 - name: github.com/json-iterator/go
   version: 1624edc4454b8682399def8740d46db5e4362ba4
 - name: github.com/kubedb/apimachinery
-  version: f2efa1e550560074ff45fbeeb1e37104736a0db8
+  version: 6319e29148b40f1ac9a7ea312394754e83feba8e
   subpackages:
   - apis
   - apis/authorization
