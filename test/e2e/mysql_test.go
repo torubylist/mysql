@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/appscode/go/log"
+	"github.com/appscode/go/types"
 	meta_util "github.com/appscode/kutil/meta"
 	catalog "github.com/kubedb/apimachinery/apis/catalog/v1alpha1"
 	api "github.com/kubedb/apimachinery/apis/kubedb/v1alpha1"
@@ -15,6 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 	core "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	store "kmodules.xyz/objectstore-api/api/v1"
 )
 
@@ -605,6 +607,190 @@ var _ = Describe("MySQL", func() {
 				})
 
 				It("should take Snapshot successfully", shouldInsertDataAndTakeSnapshot)
+			})
+
+			Context("Snapshot PodVolume Template - In S3", func() {
+
+				BeforeEach(func() {
+					secret = f.SecretForS3Backend()
+					snapshot.Spec.StorageSecretName = secret.Name
+					snapshot.Spec.S3 = &store.S3Spec{
+						Bucket: os.Getenv(S3_BUCKET_NAME),
+					}
+				})
+
+				var shouldHandleJobVolumeSuccessfully = func() {
+					// Create and wait for running MySQL
+					createAndWaitForRunning()
+
+					By("Get MySQL")
+					es, err := f.GetMySQL(mysql.ObjectMeta)
+					Expect(err).NotTo(HaveOccurred())
+					mysql.Spec = es.Spec
+
+					By("Create Secret")
+					err = f.CreateSecret(secret)
+					Expect(err).NotTo(HaveOccurred())
+
+					// determine pvcSpec and storageType for job
+					// start
+					pvcSpec := snapshot.Spec.PodVolumeClaimSpec
+					if pvcSpec == nil {
+						pvcSpec = mysql.Spec.Storage
+					}
+					st := snapshot.Spec.StorageType
+					if st == nil {
+						st = &mysql.Spec.StorageType
+					}
+					Expect(st).NotTo(BeNil())
+					// end
+
+					By("Create Snapshot")
+					err = f.CreateSnapshot(snapshot)
+					if *st == api.StorageTypeDurable && pvcSpec == nil {
+						By("Create Snapshot should have failed")
+						Expect(err).Should(HaveOccurred())
+						return
+					} else {
+						Expect(err).NotTo(HaveOccurred())
+					}
+
+					By("Get Snapshot")
+					snap, err := f.GetSnapshot(snapshot.ObjectMeta)
+					Expect(err).NotTo(HaveOccurred())
+					snapshot.Spec = snap.Spec
+
+					if *st == api.StorageTypeEphemeral {
+						storageSize := "0"
+						if pvcSpec != nil {
+							if sz, found := pvcSpec.Resources.Requests[core.ResourceStorage]; found {
+								storageSize = sz.String()
+							}
+						}
+						By(fmt.Sprintf("Check for Job Empty volume size: %v", storageSize))
+						f.EventuallyJobVolumeEmptyDirSize(snapshot.ObjectMeta).Should(Equal(storageSize))
+					} else if *st == api.StorageTypeDurable {
+						sz, found := pvcSpec.Resources.Requests[core.ResourceStorage]
+						Expect(found).NotTo(BeFalse())
+
+						By("Check for Job PVC Volume size from snapshot")
+						f.EventuallyJobPVCSize(snapshot.ObjectMeta).Should(Equal(sz.String()))
+					}
+
+					By("Check for succeeded snapshot")
+					f.EventuallySnapshotPhase(snapshot.ObjectMeta).Should(Equal(api.SnapshotPhaseSucceeded))
+
+					if !skipDataChecking {
+						By("Check for snapshot data")
+						f.EventuallySnapshotDataFound(snapshot).Should(BeTrue())
+					}
+				}
+
+				// db StorageType Scenarios
+				// ==============> Start
+				var dbStorageTypeScenarios = func() {
+					Context("DBStorageType - Durable", func() {
+						BeforeEach(func() {
+							mysql.Spec.StorageType = api.StorageTypeDurable
+							mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+								Resources: core.ResourceRequirements{
+									Requests: core.ResourceList{
+										core.ResourceStorage: resource.MustParse(framework.DBPvcStorageSize),
+									},
+								},
+								StorageClassName: types.StringP(root.StorageClass),
+							}
+
+						})
+
+						It("should Handle Job Volume Successfully", shouldHandleJobVolumeSuccessfully)
+					})
+
+					Context("DBStorageType - Ephemeral", func() {
+						BeforeEach(func() {
+							mysql.Spec.StorageType = api.StorageTypeEphemeral
+							mysql.Spec.TerminationPolicy = api.TerminationPolicyWipeOut
+						})
+
+						Context("DBPvcSpec is nil", func() {
+							BeforeEach(func() {
+								mysql.Spec.Storage = nil
+							})
+
+							It("should Handle Job Volume Successfully", shouldHandleJobVolumeSuccessfully)
+						})
+
+						Context("DBPvcSpec is given [not nil]", func() {
+							BeforeEach(func() {
+								mysql.Spec.Storage = &core.PersistentVolumeClaimSpec{
+									Resources: core.ResourceRequirements{
+										Requests: core.ResourceList{
+											core.ResourceStorage: resource.MustParse(framework.DBPvcStorageSize),
+										},
+									},
+									StorageClassName: types.StringP(root.StorageClass),
+								}
+							})
+
+							It("should Handle Job Volume Successfully", shouldHandleJobVolumeSuccessfully)
+						})
+					})
+				}
+				// End <==============
+
+				// Snapshot PVC Scenarios
+				// ==============> Start
+				var snapshotPvcScenarios = func() {
+					Context("Snapshot PVC is given [not nil]", func() {
+						BeforeEach(func() {
+							snapshot.Spec.PodVolumeClaimSpec = &core.PersistentVolumeClaimSpec{
+								Resources: core.ResourceRequirements{
+									Requests: core.ResourceList{
+										core.ResourceStorage: resource.MustParse(framework.JobPvcStorageSize),
+									},
+								},
+								StorageClassName: types.StringP(root.StorageClass),
+							}
+						})
+
+						dbStorageTypeScenarios()
+					})
+
+					Context("Snapshot PVC is nil", func() {
+						BeforeEach(func() {
+							snapshot.Spec.PodVolumeClaimSpec = nil
+						})
+
+						dbStorageTypeScenarios()
+					})
+				}
+				// End <==============
+
+				Context("Snapshot StorageType is nil", func() {
+					BeforeEach(func() {
+						snapshot.Spec.StorageType = nil
+					})
+
+					snapshotPvcScenarios()
+				})
+
+				Context("Snapshot StorageType is Ephemeral", func() {
+					BeforeEach(func() {
+						ephemeral := api.StorageTypeEphemeral
+						snapshot.Spec.StorageType = &ephemeral
+					})
+
+					snapshotPvcScenarios()
+				})
+
+				Context("Snapshot StorageType is Durable", func() {
+					BeforeEach(func() {
+						durable := api.StorageTypeDurable
+						snapshot.Spec.StorageType = &durable
+					})
+
+					snapshotPvcScenarios()
+				})
 			})
 		})
 
