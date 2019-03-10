@@ -1,5 +1,21 @@
 # Change Log
 
+## [0.3.0](https://github.com/kubedb/mysql/tree/0.3.0) (2019-02-19)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0...0.3.0)
+
+**Merged pull requests:**
+
+- Revendor dependencies [\#135](https://github.com/kubedb/mysql/pull/135) ([tamalsaha](https://github.com/tamalsaha))
+- Initial RBAC support: create and use K8s service account for MySQL [\#134](https://github.com/kubedb/mysql/pull/134) ([the-redback](https://github.com/the-redback))
+- Revendor dependencies : Retry Failed Scheduler Snapshot [\#133](https://github.com/kubedb/mysql/pull/133) ([the-redback](https://github.com/the-redback))
+- Added ephemeral StorageType support [\#132](https://github.com/kubedb/mysql/pull/132) ([the-redback](https://github.com/the-redback))
+- Added support of MySQL 8.0.14 [\#131](https://github.com/kubedb/mysql/pull/131) ([the-redback](https://github.com/the-redback))
+- Use PVC spec from snapshot if provided [\#130](https://github.com/kubedb/mysql/pull/130) ([tamalsaha](https://github.com/tamalsaha))
+- Revendored and updated tests for 'Prevent prefix matching of multiple snapshots' [\#129](https://github.com/kubedb/mysql/pull/129) ([the-redback](https://github.com/the-redback))
+- Add certificate health checker [\#128](https://github.com/kubedb/mysql/pull/128) ([tamalsaha](https://github.com/tamalsaha))
+- Update E2E test: Env update is not restricted anymore [\#127](https://github.com/kubedb/mysql/pull/127) ([the-redback](https://github.com/the-redback))
+- Fix AppBinding [\#126](https://github.com/kubedb/mysql/pull/126) ([tamalsaha](https://github.com/tamalsaha))
+
 ## [0.2.0](https://github.com/kubedb/mysql/tree/0.2.0) (2018-12-17)
 [Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0-rc.2...0.2.0)
 
