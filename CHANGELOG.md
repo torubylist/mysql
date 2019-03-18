@@ -1,5 +1,17 @@
 # Change Log
 
+## [0.4.0](https://github.com/kubedb/mysql/tree/0.4.0) (2019-03-18)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.3.0...0.4.0)
+
+**Merged pull requests:**
+
+- Init container and DB psp in e2e test framework [\#141](https://github.com/kubedb/mysql/pull/141) ([iamrz1](https://github.com/iamrz1))
+- Don't inherit app.kubernetes.io labels from CRD into offshoots [\#140](https://github.com/kubedb/mysql/pull/140) ([tamalsaha](https://github.com/tamalsaha))
+- Support for init container [\#139](https://github.com/kubedb/mysql/pull/139) ([iamrz1](https://github.com/iamrz1))
+- Add role label to stats service [\#138](https://github.com/kubedb/mysql/pull/138) ([tamalsaha](https://github.com/tamalsaha))
+- Added PSP support for mySQL [\#137](https://github.com/kubedb/mysql/pull/137) ([iamrz1](https://github.com/iamrz1))
+- Update Kubernetes client libraries to 1.13.0 release [\#136](https://github.com/kubedb/mysql/pull/136) ([tamalsaha](https://github.com/tamalsaha))
+
 ## [0.3.0](https://github.com/kubedb/mysql/tree/0.3.0) (2019-02-19)
 [Full Changelog](https://github.com/kubedb/mysql/compare/0.2.0...0.3.0)
 
