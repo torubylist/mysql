@@ -40,7 +40,7 @@ metadata:
   namespace: demo
 spec:
   podManagementPolicy: OrderedReady
-  replicas: 7
+  replicas: 4
   revisionHistoryLimit: 10
   selector:
     matchLabels:
@@ -67,7 +67,7 @@ spec:
               key: username
               name: my-galera-auth
         - name: GROUP_SIZE
-          value: "3"
+          value: "4"
         - name: BASE_NAME
           value: "my-galera"
         - name: GOV_SVC

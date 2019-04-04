@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
-set -eoux pipefail
+#set -eoux pipefail
 
 function timestamp() {
     date +"%Y-%m-%d %T"
+}
+
+function get_host_name() {
+    echo -n "$BASE_NAME-$1.$GOV_SVC.$NAMESPACE.svc"
 }
 
 # wait_for_each_instance_be_ready( group_size, base_name, gov_svc, ns)
@@ -51,7 +55,8 @@ function get_ip_whitelist() {
         if (("$i" > "0")); then
             echo -n ",";
         fi
-        echo -n "$base_name-$i.$gov_svc.$ns.svc"
+#        echo -n "$base_name-$i.$gov_svc.$ns.svc"
+        get_host_name "$i"
     done
 }
 
@@ -79,8 +84,6 @@ export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc"`
 echo ">>>>>> cur_host: $cur_host"
 export cur_addr="${cur_host}:33060"
 echo ">>>>>> cur_addr: $cur_addr"
-
-
 
 #echo "hi" > tmp.cnf
 #cat >> tmp.cnf <<EOL
@@ -170,16 +173,36 @@ echo ""
 cat /etc/mysql/my.cnf
 echo ""
 
-while true; do
-#    echo .
+#while true; do
+##    echo .
+#    sleep 1
+#done
+
+echo "$(timestamp) [INFO] Starting mysql server..."
+/etc/init.d/mysql stop
+docker-entrypoint.sh mysqld >/dev/null 2>&1 &
+pid=$!
+echo $pid
+sleep 5
+#echo "$(timestamp) [INFO] Waiting for the server being run..."
+#sleep 30
+for i in {60..0} ; do
+    out=`mysqladmin -u root --password=uWuj7-dbvefZVnJx ping 2> /dev/null`
+    echo ">>>>>>>> out:$out"
+    if [[ "$out" == "mysqld is alive" ]]; then
+        sleep 5
+        break
+    fi
+#    echo "$(timestamp) [INFO] Waiting for the server be started..."
+    echo -n .
     sleep 1
 done
 
-#echo "$(timestamp) [INFO] Starting mysql server..."
-#docker-entrypoint.sh mysqld >/dev/null 2>&1 &
-#pid=$!
-#echo "$(timestamp) [INFO] Waiting for the server being run..."
-##sleep 30
+if [[ "$i" = "0" ]]; then
+    echo "$(timestamp) [INFO] Server start failed..."
+    exit 1
+fi
+
 #while true; do
 #    echo ">>>>>>>>>> pining..."
 #    out=`mysqladmin -u root --password=uWuj7-dbvefZVnJx ping 2> /dev/null || true`
@@ -190,74 +213,146 @@ done
 #    fi
 #    sleep 1
 #done
-#
-##while true; do
-##    echo .
-##    sleep 1
-##done
-#
-#echo "$(timestamp) [INFO] Initialing the server..."
-#export mysql_header="mysql -u root --password=uWuj7-dbvefZVnJx"
-#out=`${mysql_header} -N -e "select count(host) from mysql.user where mysql.user.user='repl';" 2> /dev/null | awk '{print$1}'`
-#if [[ "$out" -eq "0" ]]; then
-#    ${mysql_header} -N -e "SET SQL_LOG_BIN=0;" 2> /dev/null
-#    ${mysql_header} -N -e "CREATE USER 'repl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;" 2> /dev/null
-#    ${mysql_header} -N -e "GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';" 2> /dev/null
-#    ${mysql_header} -N -e "FLUSH PRIVILEGES;" 2> /dev/null
-#    ${mysql_header} -N -e "SET SQL_LOG_BIN=1;" 2> /dev/null
-#
+
+#while true; do
+#    echo .
+#    sleep 1
+#done
+
+export mysql_header="mysql -u root --password=uWuj7-dbvefZVnJx"
+export member_hosts=( `echo -n ${hosts} | sed -e "s/,/ /g"` )
+
+for host in ${member_hosts[*]} ; do
+    echo ">>>>>>> host: $host"
+    echo "$(timestamp) [INFO] Initializing the server (${host})..."
+
+    mysql="$mysql_header --host=$host"
+    echo "+++++++++++ $mysql"
+
+    out=`${mysql} -N -e "select count(host) from mysql.user where mysql.user.user='repl';" 2> /dev/null | awk '{print$1}'`
+    if [[ "$out" -eq "0" ]]; then
+        echo "$(timestamp) [INFO] Replication user not found and creating one..."
+        ${mysql} -N -e "SET SQL_LOG_BIN=0;" 2> /dev/null
+        ${mysql} -N -e "CREATE USER 'repl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;" 2> /dev/null
+        ${mysql} -N -e "GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';" 2> /dev/null
+        ${mysql} -N -e "FLUSH PRIVILEGES;" 2> /dev/null
+        ${mysql} -N -e "SET SQL_LOG_BIN=1;" 2> /dev/null
+
+    #    echo ">>>> plugins are as follows:"
+    #    out=`${mysql_header} -N -e "SHOW PLUGINS;" 2> /dev/null || true`
+    #    echo ">>>> plugins= $out"
+    fi
+
+    #mysql -u root --password=uWuj7-dbvefZVnJx
+    ## mysql>
+    #SET SQL_LOG_BIN=0;
+    #CREATE USER 'repl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
+    #GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';
+    #FLUSH PRIVILEGES;
+    ## -> from here
+    #SET SQL_LOG_BIN=1;
+
+    ${mysql} -N -e "CHANGE MASTER TO MASTER_USER='repl', MASTER_PASSWORD='password' FOR CHANNEL 'group_replication_recovery';" 2> /dev/null
+    out=`${mysql} -N -e 'SHOW PLUGINS;' 2> /dev/null | grep group_replication`
+    echo ">>>>>>>>> plugins: $out"
+    if [[ -z "$out" ]]; then
+        echo "$(timestamp) [INFO] Installing group replication plugin..."
+        ${mysql} -e "INSTALL PLUGIN group_replication SONAME 'group_replication.so';" 2> /dev/null
+    fi
+
+    # TODO: it is optional. So remove this
+    sleep 5
 #    echo ">>>> plugins are as follows:"
-#    out=`${mysql_header} -N -e "SHOW PLUGINS;" 2> /dev/null || true`
-#    echo ">>>> plugins= $out"
-#fi
-##mysql -u root --password=uWuj7-dbvefZVnJx
-### mysql>
-##SET SQL_LOG_BIN=0;
-##CREATE USER 'repl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;
-##GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';
-##FLUSH PRIVILEGES;
-### -> from here
-##SET SQL_LOG_BIN=1;
-#
-#${mysql_header} -N -e "CHANGE MASTER TO MASTER_USER='repl', MASTER_PASSWORD='password' FOR CHANNEL 'group_replication_recovery';" 2> /dev/null
-#out=`${mysql_header} -N -e 'SHOW PLUGINS;' 2> /dev/null | grep group_replication`
-#if [[ -z "$out" ]]; then
-#    ${mysql_header} -e "INSTALL PLUGIN group_replication SONAME 'group_replication.so';" 2> /dev/null
-#fi
-#
-## TODO: it is optional. So remove this
-#echo ">>>> plugins are as follows:"
-#out=`${mysql_header} -N -e "SHOW PLUGINS;" 2> /dev/null || true`
-#echo ">>>> plugins= $out"
+#    out=`${mysql} -N -e "SHOW PLUGINS;" 2> /dev/null`
+#    echo ">>>> plugins $out"
+done
 
-function check() {
-    local gr_size=$1
-    local base_name=$2
-    local gov_svc=$3
-    local ns=$4
-
+function find_group() {
     # TODO: Need to handle for multiple group existence
-    local member_hosts=( `echo -n ${hosts} | sed -e "s/,/ /g"` )
-
     group_found=0
-    for host in ${member_hosts[@]}; do
+    for host in $@; do
 
-        export mysql_header="mysql -u root --password=uWuj7-dbvefZVnJx --host=${host}"
-        primary_id=${mysql_header} -N -e "SHOW STATUS LIKE '%primary%';" 2>/dev/null
-        ${mysql_header} -N -e "SELECT MEMBER_PORT FROM performance_schema.replication_group_members;"
-        ids=( `${mysql_header} -N -e "SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_STATE = 'ONLINE' OR MEMBER_STATE = 'RECOVERING';" 2>/dev/null` )
+        export mysql="$mysql_header --host=${host}"
+        # value may be 'UNDEFINED'
+        primary_id=`${mysql} -N -e "SHOW STATUS WHERE Variable_name = 'group_replication_primary_member';" 2>/dev/null | awk '{print $2}'`
+#        ${mysql_header} -N -e "SELECT MEMBER_PORT FROM performance_schema.replication_group_members;"
 
-        for id in ${ids[@]}; do
-            if [[ -n "${primary_id}" -a "${primary_id}" == "${id}" ]]; then
-                group_found=1
-            fi
-        done
-    done
+        if [[ -n "$primary_id" ]]; then
+            ids=( `${mysql} -N -e "SELECT MEMBER_ID FROM performance_schema.replication_group_members WHERE MEMBER_STATE = 'ONLINE' OR MEMBER_STATE = 'RECOVERING';" 2>/dev/null` )
 
-    for ((i=0;i<$gr_size;i++)); do
-        if (("$i" > "0")); then
-            echo -n ",";
+            for id in ${ids[@]}; do
+                if [[ "${primary_id}" == "${id}" ]]; then
+                    group_found=1
+                    primary_host=`${mysql} -N -e "SELECT MEMBER_HOST FROM performance_schema.replication_group_members WHERE MEMBER_ID = '${primary_id}';" 2>/dev/null | awk '{print $1}'`
+
+                    break
+                fi
+            done
         fi
-        echo -n "$base_name-$i.$gov_svc.$ns.svc"
+
+        if [[ "$group_found" -eq "1" ]]; then
+            break
+        fi
     done
+
+    echo -n "${group_found}"
 }
+
+export primary_host=`get_host_name 0`
+export found=`find_group ${member_hosts[*]}`
+
+echo "$(timestamp) [INFO] Checking whether there exists any replication group or not..."
+if [[ "$found" = "0" ]]; then
+    mysql="$mysql_header --host=$primary_host"
+    echo "+++++++++++ $mysql"
+
+#    out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members;"`
+    out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_HOST = '$primary_host';"`
+    echo ">>>>>>> state: $out"
+    if [[ -z "$out" || "$out" = "OFFLINE" ]]; then
+        echo "$(timestamp) [INFO] No group is found and bootstrapping one on host '$primary_host'..."
+
+        ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
+        ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
+        ${mysql} -N -e "SET GLOBAL group_replication_bootstrap_group=ON;" # 2>/dev/null
+        ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
+        ${mysql} -N -e "SET GLOBAL group_replication_bootstrap_group=OFF;" # 2>/dev/null
+    fi
+fi
+
+for host in ${member_hosts[*]}; do
+    if [[ "$host" != "$primary_host" ]]; then
+        mysql="$mysql_header --host=$host"
+        echo "+++++++++++ $mysql"
+
+#        out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members;"`
+        out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_HOST = '$host';"`
+        echo ">>>>>>> state: $out"
+        if [[ -z "$out" || "$out" = "OFFLINE" ]]; then
+            echo "$(timestamp) [INFO] Starting group replication on (${host})..."
+
+            ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
+            ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
+            ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
+        fi
+    fi
+done
+
+while true; do
+    echo -n .
+    sleep 1
+done
+
+#my="mysql -u root --password=uWuj7-dbvefZVnJx"
+#h0=my-galera-0.kubedb-gvr.demo.svc
+#h1=my-galera-1.kubedb-gvr.demo.svc
+#h2=my-galera-2.kubedb-gvr.demo.svc
+#$my --host=$h1 -e 'SELECT * FROM performance_schema.replication_group_members;'
+#$my --host=$h2 -e 'SELECT * FROM performance_schema.replication_group_members;'
+#$my --host=$h0 -e 'CREATE DATABASE playground; CREATE TABLE playground.equipment ( id INT NOT NULL AUTO_INCREMENT, type VARCHAR(50), quant INT, color VARCHAR(25), PRIMARY KEY(id)); INSERT INTO playground.equipment (type, quant, color) VALUES ("slide", 2, "blue");'
+#$my --host=$h0 -e 'SELECT * FROM playground.equipment;'
+#$my --host=$h1 -e 'SELECT * FROM playground.equipment;'
+#$my --host=$h2 -e 'SELECT * FROM playground.equipment;'
+
+
+# =========================================
