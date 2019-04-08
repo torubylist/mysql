@@ -40,7 +40,7 @@ metadata:
   namespace: demo
 spec:
   podManagementPolicy: OrderedReady
-  replicas: 4
+  replicas: 3
   revisionHistoryLimit: 10
   selector:
     matchLabels:
@@ -67,13 +67,16 @@ spec:
               key: username
               name: my-galera-auth
         - name: GROUP_SIZE
-          value: "4"
+          value: "3"
         - name: BASE_NAME
           value: "my-galera"
         - name: GOV_SVC
           value: "kubedb-gvr"
-        - name: NAMESPACE
-          value: "demo"
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: "metadata.namespace"
+              apiVersion: "v1"
         - name: GROUP_NAME
           value: "67e110ec-d3d7-4cb8-a192-13ddad17dcc7"
 #        image: mysql:8.0.15
@@ -85,7 +88,8 @@ spec:
         imagePullPolicy: IfNotPresent
 #        imagePullPolicy: Always
         name: mysql
-#        command:
+        command:
+          - peer-finder
 #          - bash
 #          - -c
 #          - |
@@ -95,6 +99,9 @@ spec:
 #              sleep 1
 #              echo .
 #            done
+        args:
+          - "-on-change=/run.sh"
+          - "-service=kubedb-gvr"
         ports:
         - containerPort: 3306
           name: db

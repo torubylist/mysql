@@ -7,7 +7,7 @@ function timestamp() {
 }
 
 function get_host_name() {
-    echo -n "$BASE_NAME-$1.$GOV_SVC.$NAMESPACE.svc"
+    echo -n "$BASE_NAME-$1.$GOV_SVC.$NAMESPACE.svc.cluster.local"
 }
 
 # wait_for_each_instance_be_ready( group_size, base_name, gov_svc, ns)
@@ -71,16 +71,29 @@ echo "NAMESPACE=$NAMESPACE"
 echo "GROUP_NAME=$GROUP_NAME"
 echo ""
 
+my_hostname=$(hostname)
+echo "$(timestamp) [INFO] Reading standard input..."
+while read -ra line; do
+#  if [[ "${line}" == *"${my_hostname}"* ]]; then
+#    service_name="$line"
+#    continue
+#  fi
+    echo ">>>>>>>>> line: $line"
+    peers=("${peers[@]}" "$line")
+done
+echo "================= args: '${peers[*]}'"
+
 wait_for_each_instance_be_ready ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}
 
-export hosts=`get_ip_whitelist ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}`
-echo ">>>>>> ips: $hosts"
+#export hosts=`get_ip_whitelist ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}`
+export hosts=`echo -n ${peers[*]} | sed -e "s/ /,/g"`
+echo ">>>>>> ips: '$hosts'"
 export seeds=`echo -n ${hosts} | sed -e "s/,/:33060,/g" && echo -n ":33060"`
 echo ">>>>>> seeds: $seeds"
 declare -i srv_id=`hostname | sed -e "s/${BASE_NAME}-//g"`
 ((srv_id+=1))
 echo ">>>>>> srv_id: $srv_id"
-export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc"`
+export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc.cluster.local"`
 echo ">>>>>> cur_host: $cur_host"
 export cur_addr="${cur_host}:33060"
 echo ">>>>>> cur_addr: $cur_addr"
@@ -153,7 +166,7 @@ loose-group_replication_recovery_use_ssl = 1
 
 # Shared replication group configuration
 loose-group_replication_group_name = "${GROUP_NAME}"
-loose-group_replication_ip_whitelist = "${hosts}"
+#loose-group_replication_ip_whitelist = "${hosts}"
 loose-group_replication_group_seeds = "${seeds}"
 
 # Single or Multi-primary mode? Uncomment these two lines
@@ -231,6 +244,8 @@ for host in ${member_hosts[*]} ; do
 
     out=`${mysql} -N -e "select count(host) from mysql.user where mysql.user.user='repl';" 2> /dev/null | awk '{print$1}'`
     if [[ "$out" -eq "0" ]]; then
+        is_new=("${is_new[@]}" "1")
+
         echo "$(timestamp) [INFO] Replication user not found and creating one..."
         ${mysql} -N -e "SET SQL_LOG_BIN=0;" 2> /dev/null
         ${mysql} -N -e "CREATE USER 'repl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;" 2> /dev/null
@@ -241,6 +256,8 @@ for host in ${member_hosts[*]} ; do
     #    echo ">>>> plugins are as follows:"
     #    out=`${mysql_header} -N -e "SHOW PLUGINS;" 2> /dev/null || true`
     #    echo ">>>> plugins= $out"
+    else
+        is_new=("${is_new[@]}" "0")
     fi
 
     #mysql -u root --password=uWuj7-dbvefZVnJx
@@ -313,6 +330,8 @@ if [[ "$found" = "0" ]]; then
         echo "$(timestamp) [INFO] No group is found and bootstrapping one on host '$primary_host'..."
 
         ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
+#        ${mysql} -N -e 'SET GLOBAL group_replication_ip_whitelist="$hosts"' # 2>/dev/null
+#        ${mysql} -N -e 'SET GLOBAL group_replication_group_seeds="$seeds"' # 2>/dev/null
         ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
         ${mysql} -N -e "SET GLOBAL group_replication_bootstrap_group=ON;" # 2>/dev/null
         ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
@@ -320,6 +339,7 @@ if [[ "$found" = "0" ]]; then
     fi
 fi
 
+declare -i tmp=0
 for host in ${member_hosts[*]}; do
     if [[ "$host" != "$primary_host" ]]; then
         mysql="$mysql_header --host=$host"
@@ -332,10 +352,18 @@ for host in ${member_hosts[*]}; do
             echo "$(timestamp) [INFO] Starting group replication on (${host})..."
 
             ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
-            ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
+            echo "
+            ++++++++++ tmp: $tmp
+            ++++++++++ is_new[$tmp]: ${is_new[$tmp]}
+            "
+            if [[ "${is_new[$tmp]}" -eq "1" ]]; then
+                ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
+            fi
+#            ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
             ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
         fi
     fi
+    ((tmp++))
 done
 
 while true; do
@@ -344,9 +372,11 @@ while true; do
 done
 
 #my="mysql -u root --password=uWuj7-dbvefZVnJx"
-#h0=my-galera-0.kubedb-gvr.demo.svc
-#h1=my-galera-1.kubedb-gvr.demo.svc
-#h2=my-galera-2.kubedb-gvr.demo.svc
+#h0=my-galera-0.kubedb-gvr.demo.svc.cluster.local
+#h1=my-galera-1.kubedb-gvr.demo.svc.cluster.local
+#h2=my-galera-2.kubedb-gvr.demo.svc.cluster.local
+#h3=my-galera-3.kubedb-gvr.demo.svc.cluster.local
+#$my --host=$h0 -e 'SELECT * FROM performance_schema.replication_group_members;'
 #$my --host=$h1 -e 'SELECT * FROM performance_schema.replication_group_members;'
 #$my --host=$h2 -e 'SELECT * FROM performance_schema.replication_group_members;'
 #$my --host=$h0 -e 'CREATE DATABASE playground; CREATE TABLE playground.equipment ( id INT NOT NULL AUTO_INCREMENT, type VARCHAR(50), quant INT, color VARCHAR(25), PRIMARY KEY(id)); INSERT INTO playground.equipment (type, quant, color) VALUES ("slide", 2, "blue");'
