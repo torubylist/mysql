@@ -67,23 +67,25 @@ function get_ip_whitelist() {
 echo "GROUP_SIZE=$GROUP_SIZE"
 echo "BASE_NAME=$BASE_NAME"
 echo "GOV_SVC=$GOV_SVC"
-echo "NAMESPACE=$NAMESPACE"
+NAMESPACE="$POD_NAMESPACE"
+echo "NAMESPACE=$POD_NAMESPACE"
 echo "GROUP_NAME=$GROUP_NAME"
+echo ""
+USER="$MYSQL_ROOT_USERNAME"
+PASSWORD="$MYSQL_ROOT_PASSWORD"
+echo "USER=$MYSQL_ROOT_USERNAME"
+echo "PASSWORD=$MYSQL_ROOT_PASSWORD"
 echo ""
 
 my_hostname=$(hostname)
 echo "$(timestamp) [INFO] Reading standard input..."
 while read -ra line; do
-#  if [[ "${line}" == *"${my_hostname}"* ]]; then
-#    service_name="$line"
-#    continue
-#  fi
     echo ">>>>>>>>> line: $line"
     peers=("${peers[@]}" "$line")
 done
 echo "================= args: '${peers[*]}'"
 
-wait_for_each_instance_be_ready ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}
+#wait_for_each_instance_be_ready ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}
 
 #export hosts=`get_ip_whitelist ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}`
 export hosts=`echo -n ${peers[*]} | sed -e "s/ /,/g"`
@@ -97,52 +99,6 @@ export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc.cluster.local"
 echo ">>>>>> cur_host: $cur_host"
 export cur_addr="${cur_host}:33060"
 echo ">>>>>> cur_addr: $cur_addr"
-
-#echo "hi" > tmp.cnf
-#cat >> tmp.cnf <<EOL
-##loose-group_replication_ip_whitelist = "${hosts}"
-##loose-group_replication_group_seeds = "$seeds"
-##server_id = ${srv_id}
-##bind-address = "${cur_host}"
-##report_host = "${cur_host}"
-##loose-group_replication_local_address = "${cur_addr}"
-#EOL
-#cat tmp.cnf
-
-# -----------------
-## group replication pre-requisites & recommendations
-#binlog-format = ROW
-#gtid-mode = ON
-#enforce-gtid-consistency = ON
-#log-slave-updates = ON
-#master-info-repository = TABLE
-#relay-log-info-repository = TABLE
-#binlog-checksum = NONE
-#slave-preserve-commit-order = ON
-## prevent use of non-transactional storage engines
-#disabled_storage_engines="MyISAM,BLACKHOLE,FEDERATED,ARCHIVE"
-## InnoDB gap locks are problematic for multi-primary conflict detection; none are used with READ-COMMITTED
-## So if you don't rely on REPEATABLE-READ semantics and/or wish to use multi-primary mode then this
-## isolation level is recommended
-#transaction-isolation = 'READ-COMMITTED'
-## Let Group Replication manage the READ/WRITE mode of the server entirely throughout the process lifecycle
-## super_read_only = ON
-#
-## group replication specific options
-#transaction-write-set-extraction = XXHASH64
-## disable the IP whitelisting, as we won't know what the IP range will be
-#loose-group-replication-ip-whitelist='0.0.0.0/0'
-#
-## dynamic options to be driven by command-line parameters
-##****************************************************************************
-## server-id = ??? # must be unique within replication topologies
-## group_replication_group_name = ??? # must be valid UUID
-## group_replication_bootstrap_group = ??? # must be ON for the first node in the group
-## group_replication_local_address = ??? # needs to be an IP address / hostname which the other GR containers can reach
-## group_replication_group_seeds = ??? # is necessary for the non-bootstrap nodes
-##****************************************************************************
-# -----------------
-
 
 echo "/etc/mysql/my.cnf contents are as follows:"
 cat >> /etc/mysql/my.cnf <<EOL
@@ -181,15 +137,10 @@ report_host = "${cur_host}"
 loose-group_replication_local_address = "${cur_addr}"
 EOL
 
-# TODO: remove this
-echo ""
-cat /etc/mysql/my.cnf
-echo ""
-
-#while true; do
-##    echo .
-#    sleep 1
-#done
+## TODO: remove this
+#echo ""
+#cat /etc/mysql/my.cnf
+#echo ""
 
 echo "$(timestamp) [INFO] Starting mysql server..."
 /etc/init.d/mysql stop
@@ -216,23 +167,30 @@ if [[ "$i" = "0" ]]; then
     exit 1
 fi
 
-#while true; do
-#    echo ">>>>>>>>>> pining..."
-#    out=`mysqladmin -u root --password=uWuj7-dbvefZVnJx ping 2> /dev/null || true`
-#    echo ">>>>>>>> out:$out"
-#    if [[ "$out" == "mysqld is alive" ]]; then
-#        sleep 5
-#        break
+#for host in ${peers[*]}; do
+#
+#    echo "
+#    >>>>>>>>>>> mysqladmin -u ${USER} --password=${PASSWORD} --host=${host}
+#    "
+#    for i in {60..0} ; do
+#        out=`mysqladmin -u ${USER} --password=${PASSWORD} --host=${host} ping 2> /dev/null`
+#        echo ">>>>>>>> ${host}-> out:$out"
+#        if [[ "$out" == "mysqld is alive" ]]; then
+#            sleep 5
+#            break
+#        fi
+#    #    echo "$(timestamp) [INFO] Waiting for the server be started..."
+#        echo -n .
+#        sleep 1
+#    done
+#
+#    if [[ "$i" = "0" ]]; then
+#        echo "$(timestamp) [INFO] Server ${host} start failed..."
+#        exit 1
 #    fi
-#    sleep 1
 #done
 
-#while true; do
-#    echo .
-#    sleep 1
-#done
-
-export mysql_header="mysql -u root --password=uWuj7-dbvefZVnJx"
+export mysql_header="mysql -u ${USER} --password=${PASSWORD}"
 export member_hosts=( `echo -n ${hosts} | sed -e "s/,/ /g"` )
 
 for host in ${member_hosts[*]} ; do
@@ -257,6 +215,7 @@ for host in ${member_hosts[*]} ; do
     #    out=`${mysql_header} -N -e "SHOW PLUGINS;" 2> /dev/null || true`
     #    echo ">>>> plugins= $out"
     else
+        echo "$(timestamp) [INFO] Replication user info exists"
         is_new=("${is_new[@]}" "0")
     fi
 
@@ -275,13 +234,15 @@ for host in ${member_hosts[*]} ; do
     if [[ -z "$out" ]]; then
         echo "$(timestamp) [INFO] Installing group replication plugin..."
         ${mysql} -e "INSTALL PLUGIN group_replication SONAME 'group_replication.so';" 2> /dev/null
+    else
+        echo "$(timestamp) [INFO] already group replication plugin is installed"
     fi
 
     # TODO: it is optional. So remove this
     sleep 5
-#    echo ">>>> plugins are as follows:"
-#    out=`${mysql} -N -e "SHOW PLUGINS;" 2> /dev/null`
-#    echo ">>>> plugins $out"
+    echo ">>>> plugins are as follows:"
+    out=`${mysql} -N -e "SHOW PLUGINS;" 2> /dev/null`
+    echo ">>>> plugins $out"
 done
 
 function find_group() {
@@ -317,6 +278,7 @@ function find_group() {
 
 export primary_host=`get_host_name 0`
 export found=`find_group ${member_hosts[*]}`
+primary_idx=`echo ${primary_host} | sed -e "s/[a-z.-]//g"`
 
 echo "$(timestamp) [INFO] Checking whether there exists any replication group or not..."
 if [[ "$found" = "0" ]]; then
@@ -332,11 +294,22 @@ if [[ "$found" = "0" ]]; then
         ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
 #        ${mysql} -N -e 'SET GLOBAL group_replication_ip_whitelist="$hosts"' # 2>/dev/null
 #        ${mysql} -N -e 'SET GLOBAL group_replication_group_seeds="$seeds"' # 2>/dev/null
-        ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
+        echo "
+        ++++++++++ primary_idx: $primary_idx
+        ++++++++++ is_new[$primary_idx]: ${is_new[$primary_idx]}
+        "
+        if [[ "${is_new[$tmp]}" -eq "1" ]]; then
+            ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
+        fi
+#        ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
         ${mysql} -N -e "SET GLOBAL group_replication_bootstrap_group=ON;" # 2>/dev/null
         ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
         ${mysql} -N -e "SET GLOBAL group_replication_bootstrap_group=OFF;" # 2>/dev/null
+    else
+        echo "$(timestamp) [INFO] No group is found and member state is unknown on host '$primary_host'..."
     fi
+else
+    echo "$(timestamp) [INFO] A group is found and the primary host is '$primary_host'..."
 fi
 
 declare -i tmp=0
@@ -361,6 +334,8 @@ for host in ${member_hosts[*]}; do
             fi
 #            ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
             ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
+        else
+            echo "$(timestamp) [INFO] Member state is unknown on host '${host}'..."
         fi
     fi
     ((tmp++))
