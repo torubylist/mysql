@@ -2,8 +2,19 @@
 
 #set -eoux pipefail
 
+script_name=${0##*/}
+NAMESPACE="$POD_NAMESPACE"
+USER="$MYSQL_ROOT_USERNAME"
+PASSWORD="$MYSQL_ROOT_PASSWORD"
+
 function timestamp() {
     date +"%Y-%m-%d %T"
+}
+
+function log() {
+    local type="$1"
+    local msg="$2"
+    echo "[$(timestamp)] [$script_name] [$type] $msg"
 }
 
 function get_host_name() {
@@ -37,7 +48,7 @@ function wait_for_each_instance_be_ready() {
         fi
     done
 
-    echo "$(timestamp) [INFO] All servers are ready :)"
+    log "INFO" "All servers are ready :)"
 }
 
 # get_ip_whitelist( group_size, base_name, gov_svc, ns)
@@ -67,20 +78,21 @@ function get_ip_whitelist() {
 echo "GROUP_SIZE=$GROUP_SIZE"
 echo "BASE_NAME=$BASE_NAME"
 echo "GOV_SVC=$GOV_SVC"
-NAMESPACE="$POD_NAMESPACE"
 echo "NAMESPACE=$POD_NAMESPACE"
 echo "GROUP_NAME=$GROUP_NAME"
 echo ""
-USER="$MYSQL_ROOT_USERNAME"
-PASSWORD="$MYSQL_ROOT_PASSWORD"
-echo "USER=$MYSQL_ROOT_USERNAME"
-echo "PASSWORD=$MYSQL_ROOT_PASSWORD"
+echo "USER=$USER"
+echo "PASSWORD=$PASSWORD"
 echo ""
 
-my_hostname=$(hostname)
+cur_hostname=$(hostname)
+export cur_host=
 echo "$(timestamp) [INFO] Reading standard input..."
 while read -ra line; do
     echo ">>>>>>>>> line: $line"
+    if [[ "${line}" == *"${cur_hostname}"* ]]; then
+        cur_host="$line"
+    fi
     peers=("${peers[@]}" "$line")
 done
 echo "================= args: '${peers[*]}'"
@@ -95,7 +107,7 @@ echo ">>>>>> seeds: $seeds"
 declare -i srv_id=`hostname | sed -e "s/${BASE_NAME}-//g"`
 ((srv_id+=1))
 echo ">>>>>> srv_id: $srv_id"
-export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc.cluster.local"`
+#export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc.cluster.local"`
 echo ">>>>>> cur_host: $cur_host"
 export cur_addr="${cur_host}:33060"
 echo ">>>>>> cur_addr: $cur_addr"
@@ -150,45 +162,45 @@ echo $pid
 sleep 5
 #echo "$(timestamp) [INFO] Waiting for the server being run..."
 #sleep 30
-for i in {60..0} ; do
-    out=`mysqladmin -u root --password=uWuj7-dbvefZVnJx ping 2> /dev/null`
-    echo ">>>>>>>> out:$out"
-    if [[ "$out" == "mysqld is alive" ]]; then
-        sleep 5
-        break
-    fi
-#    echo "$(timestamp) [INFO] Waiting for the server be started..."
-    echo -n .
-    sleep 1
-done
-
-if [[ "$i" = "0" ]]; then
-    echo "$(timestamp) [INFO] Server start failed..."
-    exit 1
-fi
-
-#for host in ${peers[*]}; do
-#
-#    echo "
-#    >>>>>>>>>>> mysqladmin -u ${USER} --password=${PASSWORD} --host=${host}
-#    "
-#    for i in {60..0} ; do
-#        out=`mysqladmin -u ${USER} --password=${PASSWORD} --host=${host} ping 2> /dev/null`
-#        echo ">>>>>>>> ${host}-> out:$out"
-#        if [[ "$out" == "mysqld is alive" ]]; then
-#            sleep 5
-#            break
-#        fi
-#    #    echo "$(timestamp) [INFO] Waiting for the server be started..."
-#        echo -n .
-#        sleep 1
-#    done
-#
-#    if [[ "$i" = "0" ]]; then
-#        echo "$(timestamp) [INFO] Server ${host} start failed..."
-#        exit 1
+#for i in {60..0} ; do
+#    out=`mysqladmin -u root --password=uWuj7-dbvefZVnJx ping 2> /dev/null`
+#    echo ">>>>>>>> out:$out"
+#    if [[ "$out" == "mysqld is alive" ]]; then
+#        sleep 5
+#        break
 #    fi
+##    echo "$(timestamp) [INFO] Waiting for the server be started..."
+#    echo -n .
+#    sleep 1
 #done
+#
+#if [[ "$i" = "0" ]]; then
+#    echo "$(timestamp) [INFO] Server start failed..."
+#    exit 1
+#fi
+
+for host in ${peers[*]}; do
+
+    echo "
+    >>>>>>>>>>> mysqladmin -u ${USER} --password=${PASSWORD} --host=${host}
+    "
+    for i in {60..0} ; do
+        out=`mysqladmin -u ${USER} --password=${PASSWORD} --host=${host} ping 2> /dev/null`
+        echo ">>>>>>>> ${host}-> out:$out"
+        if [[ "$out" == "mysqld is alive" ]]; then
+            sleep 5
+            break
+        fi
+    #    echo "$(timestamp) [INFO] Waiting for the server be started..."
+        echo -n .
+        sleep 1
+    done
+
+    if [[ "$i" = "0" ]]; then
+        log "ERROR" "Server ${host} start failed..."
+        exit 1
+    fi
+done
 
 export mysql_header="mysql -u ${USER} --password=${PASSWORD}"
 export member_hosts=( `echo -n ${hosts} | sed -e "s/,/ /g"` )
