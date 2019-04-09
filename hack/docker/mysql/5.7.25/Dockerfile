@@ -1,8 +1,9 @@
 FROM mysql:5.7.25
 
-COPY entrypoint.sh /run.sh
+COPY on-change.sh /
 COPY peer-finder /usr/local/bin/
 
-RUN chmod +x /run.sh
+RUN chmod +x /on-change.sh
 
-ENTRYPOINT ["/run.sh"]
+#ENTRYPOINT ["/run.sh"]
+ENTRYPOINT ["peer-finder"]

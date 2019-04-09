@@ -8,13 +8,13 @@ USER="$MYSQL_ROOT_USERNAME"
 PASSWORD="$MYSQL_ROOT_PASSWORD"
 
 function timestamp() {
-    date +"%Y-%m-%d %T"
+    date +"%Y/%m/%d %T"
 }
 
 function log() {
     local type="$1"
     local msg="$2"
-    echo "[$(timestamp)] [$script_name] [$type] $msg"
+    echo "$(timestamp) [$script_name] [$type] $msg"
 }
 
 function get_host_name() {
@@ -87,32 +87,34 @@ echo ""
 
 cur_hostname=$(hostname)
 export cur_host=
-echo "$(timestamp) [INFO] Reading standard input..."
+log "INFO" "Reading standard input..."
 while read -ra line; do
-    echo ">>>>>>>>> line: $line"
+#    echo ">>>>>>>>> line: $line"
     if [[ "${line}" == *"${cur_hostname}"* ]]; then
         cur_host="$line"
+        log "INFO" "I am $cur_host"
     fi
     peers=("${peers[@]}" "$line")
 done
-echo "================= args: '${peers[*]}'"
+#echo "================= args: '${peers[*]}'"
 
 #wait_for_each_instance_be_ready ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}
 
 #export hosts=`get_ip_whitelist ${GROUP_SIZE} ${BASE_NAME} ${GOV_SVC} ${NAMESPACE}`
 export hosts=`echo -n ${peers[*]} | sed -e "s/ /,/g"`
-echo ">>>>>> ips: '$hosts'"
+#echo ">>>>>> ips: '$hosts'"
 export seeds=`echo -n ${hosts} | sed -e "s/,/:33060,/g" && echo -n ":33060"`
-echo ">>>>>> seeds: $seeds"
+#echo ">>>>>> seeds: $seeds"
 declare -i srv_id=`hostname | sed -e "s/${BASE_NAME}-//g"`
 ((srv_id+=1))
-echo ">>>>>> srv_id: $srv_id"
+#echo ">>>>>> srv_id: $srv_id"
 #export cur_host=`echo -n "$(hostname).${GOV_SVC}.${NAMESPACE}.svc.cluster.local"`
-echo ">>>>>> cur_host: $cur_host"
+#echo ">>>>>> cur_host: $cur_host"
 export cur_addr="${cur_host}:33060"
-echo ">>>>>> cur_addr: $cur_addr"
+#echo ">>>>>> cur_addr: $cur_addr"
 
-echo "/etc/mysql/my.cnf contents are as follows:"
+#echo "/etc/mysql/my.cnf contents are as follows:"
+log "INFO" "Storing default mysqld config into /etc/mysql/my.cnf"
 cat >> /etc/mysql/my.cnf <<EOL
 
 [mysqld]
@@ -154,44 +156,21 @@ EOL
 #cat /etc/mysql/my.cnf
 #echo ""
 
-echo "$(timestamp) [INFO] Starting mysql server..."
+log "INFO" "Starting mysql server..."
 /etc/init.d/mysql stop
 docker-entrypoint.sh mysqld >/dev/null 2>&1 &
 pid=$!
 echo $pid
 sleep 5
-#echo "$(timestamp) [INFO] Waiting for the server being run..."
-#sleep 30
-#for i in {60..0} ; do
-#    out=`mysqladmin -u root --password=uWuj7-dbvefZVnJx ping 2> /dev/null`
-#    echo ">>>>>>>> out:$out"
-#    if [[ "$out" == "mysqld is alive" ]]; then
-#        sleep 5
-#        break
-#    fi
-##    echo "$(timestamp) [INFO] Waiting for the server be started..."
-#    echo -n .
-#    sleep 1
-#done
-#
-#if [[ "$i" = "0" ]]; then
-#    echo "$(timestamp) [INFO] Server start failed..."
-#    exit 1
-#fi
 
 for host in ${peers[*]}; do
-
-    echo "
-    >>>>>>>>>>> mysqladmin -u ${USER} --password=${PASSWORD} --host=${host}
-    "
     for i in {60..0} ; do
         out=`mysqladmin -u ${USER} --password=${PASSWORD} --host=${host} ping 2> /dev/null`
-        echo ">>>>>>>> ${host}-> out:$out"
         if [[ "$out" == "mysqld is alive" ]]; then
             sleep 5
             break
         fi
-    #    echo "$(timestamp) [INFO] Waiting for the server be started..."
+
         echo -n .
         sleep 1
     done
@@ -202,21 +181,23 @@ for host in ${peers[*]}; do
     fi
 done
 
+log "INFO" "All servers (${peers[*]}) are ready"
+
 export mysql_header="mysql -u ${USER} --password=${PASSWORD}"
 export member_hosts=( `echo -n ${hosts} | sed -e "s/,/ /g"` )
 
 for host in ${member_hosts[*]} ; do
-    echo ">>>>>>> host: $host"
-    echo "$(timestamp) [INFO] Initializing the server (${host})..."
+#    echo ">>>>>>> host: $host"
+    log "INFO" "Initializing the server (${host})..."
 
     mysql="$mysql_header --host=$host"
-    echo "+++++++++++ $mysql"
+#    echo "+++++++++++ $mysql"
 
     out=`${mysql} -N -e "select count(host) from mysql.user where mysql.user.user='repl';" 2> /dev/null | awk '{print$1}'`
     if [[ "$out" -eq "0" ]]; then
         is_new=("${is_new[@]}" "1")
 
-        echo "$(timestamp) [INFO] Replication user not found and creating one..."
+        log "INFO" "Replication user not found and creating one..."
         ${mysql} -N -e "SET SQL_LOG_BIN=0;" 2> /dev/null
         ${mysql} -N -e "CREATE USER 'repl'@'%' IDENTIFIED BY 'password' REQUIRE SSL;" 2> /dev/null
         ${mysql} -N -e "GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';" 2> /dev/null
@@ -227,7 +208,7 @@ for host in ${member_hosts[*]} ; do
     #    out=`${mysql_header} -N -e "SHOW PLUGINS;" 2> /dev/null || true`
     #    echo ">>>> plugins= $out"
     else
-        echo "$(timestamp) [INFO] Replication user info exists"
+        log "INFO" "Replication user info exists"
         is_new=("${is_new[@]}" "0")
     fi
 
@@ -242,19 +223,19 @@ for host in ${member_hosts[*]} ; do
 
     ${mysql} -N -e "CHANGE MASTER TO MASTER_USER='repl', MASTER_PASSWORD='password' FOR CHANNEL 'group_replication_recovery';" 2> /dev/null
     out=`${mysql} -N -e 'SHOW PLUGINS;' 2> /dev/null | grep group_replication`
-    echo ">>>>>>>>> plugins: $out"
+#    echo ">>>>>>>>> plugins: $out"
     if [[ -z "$out" ]]; then
-        echo "$(timestamp) [INFO] Installing group replication plugin..."
+        log "INFO" "Installing group replication plugin..."
         ${mysql} -e "INSTALL PLUGIN group_replication SONAME 'group_replication.so';" 2> /dev/null
     else
-        echo "$(timestamp) [INFO] already group replication plugin is installed"
+        log "INFO" "Already group replication plugin is installed"
     fi
 
-    # TODO: it is optional. So remove this
-    sleep 5
-    echo ">>>> plugins are as follows:"
-    out=`${mysql} -N -e "SHOW PLUGINS;" 2> /dev/null`
-    echo ">>>> plugins $out"
+##     TODO: it is optional. So remove this
+#    sleep 5
+#    echo ">>>> plugins are as follows:"
+#    out=`${mysql} -N -e "SHOW PLUGINS;" 2> /dev/null`
+#    echo ">>>> plugins $out"
 done
 
 function find_group() {
@@ -292,25 +273,26 @@ export primary_host=`get_host_name 0`
 export found=`find_group ${member_hosts[*]}`
 primary_idx=`echo ${primary_host} | sed -e "s/[a-z.-]//g"`
 
-echo "$(timestamp) [INFO] Checking whether there exists any replication group or not..."
+log "INFO" "Checking whether there exists any replication group or not..."
 if [[ "$found" = "0" ]]; then
     mysql="$mysql_header --host=$primary_host"
-    echo "+++++++++++ $mysql"
+#    echo "+++++++++++ $mysql"
 
 #    out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members;"`
     out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_HOST = '$primary_host';"`
-    echo ">>>>>>> state: $out"
+#    echo ">>>>>>> state: $out"
     if [[ -z "$out" || "$out" = "OFFLINE" ]]; then
-        echo "$(timestamp) [INFO] No group is found and bootstrapping one on host '$primary_host'..."
+        log "INFO" "No group is found and bootstrapping one on host '$primary_host'..."
 
         ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
 #        ${mysql} -N -e 'SET GLOBAL group_replication_ip_whitelist="$hosts"' # 2>/dev/null
 #        ${mysql} -N -e 'SET GLOBAL group_replication_group_seeds="$seeds"' # 2>/dev/null
-        echo "
-        ++++++++++ primary_idx: $primary_idx
-        ++++++++++ is_new[$primary_idx]: ${is_new[$primary_idx]}
-        "
+#        echo "
+#        ++++++++++ primary_idx: $primary_idx
+#        ++++++++++ is_new[$primary_idx]: ${is_new[$primary_idx]}
+#        "
         if [[ "${is_new[$tmp]}" -eq "1" ]]; then
+            log "INFO" "RESET MASTER in primary host $primary_host..."
             ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
         fi
 #        ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
@@ -318,36 +300,37 @@ if [[ "$found" = "0" ]]; then
         ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
         ${mysql} -N -e "SET GLOBAL group_replication_bootstrap_group=OFF;" # 2>/dev/null
     else
-        echo "$(timestamp) [INFO] No group is found and member state is unknown on host '$primary_host'..."
+        log "INFO" "No group is found and member state is unknown on host '$primary_host'..."
     fi
 else
-    echo "$(timestamp) [INFO] A group is found and the primary host is '$primary_host'..."
+    log "INFO" "A group is found and the primary host is '$primary_host'..."
 fi
 
 declare -i tmp=0
 for host in ${member_hosts[*]}; do
     if [[ "$host" != "$primary_host" ]]; then
         mysql="$mysql_header --host=$host"
-        echo "+++++++++++ $mysql"
+#        echo "+++++++++++ $mysql"
 
 #        out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members;"`
         out=`${mysql} -N -e "SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_HOST = '$host';"`
-        echo ">>>>>>> state: $out"
+#        echo ">>>>>>> state: $out"
         if [[ -z "$out" || "$out" = "OFFLINE" ]]; then
-            echo "$(timestamp) [INFO] Starting group replication on (${host})..."
+            log "INFO" "Starting group replication on (${host})..."
 
             ${mysql} -N -e "STOP GROUP_REPLICATION;" # 2>/dev/null
-            echo "
-            ++++++++++ tmp: $tmp
-            ++++++++++ is_new[$tmp]: ${is_new[$tmp]}
-            "
+#            echo "
+#            ++++++++++ tmp: $tmp
+#            ++++++++++ is_new[$tmp]: ${is_new[$tmp]}
+#            "
             if [[ "${is_new[$tmp]}" -eq "1" ]]; then
+                log "INFO" "RESET MASTER in host $host..."
                 ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
             fi
 #            ${mysql} -N -e "RESET MASTER;" # 2>/dev/null
             ${mysql} -N -e "START GROUP_REPLICATION;" # 2>/dev/null
         else
-            echo "$(timestamp) [INFO] Member state is unknown on host '${host}'..."
+            log "INFO" "Member state is unknown on host '${host}'..."
         fi
     fi
     ((tmp++))

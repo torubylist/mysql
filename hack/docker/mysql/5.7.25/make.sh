@@ -1,19 +1,31 @@
-#!/usr/bin/env bash
+#!/bin/bash
+set -xeou pipefail
 
-if [[ "$1" == "docker" ]]; then
+GOPATH=$(go env GOPATH)
+REPO_ROOT=$GOPATH/src/github.com/kubedb/mysql
+
+source "$REPO_ROOT/hack/libbuild/common/lib.sh"
+source "$REPO_ROOT/hack/libbuild/common/kubedb_image.sh"
+
+DOCKER_REGISTRY=${DOCKER_REGISTRY:-kubedb}
+IMG=mysql
+DB_VERSION=5.7.25
+TAG="$DB_VERSION"
+
+build() {
+    pushd "$REPO_ROOT/hack/docker/mysql/$DB_VERSION"
+
     # Download Peer-finder
     # ref: peer-finder: https://github.com/kubernetes/contrib/tree/master/peer-finder
     # wget peer-finder: https://github.com/kubernetes/charts/blob/master/stable/mongodb-replicaset/install/Dockerfile#L18
-    wget -qO peer-finder https://github.com/kmodules/peer-finder/releases/download/v1.0.1-ac/peer-finder
+    wget -qO peer-finder https://github.com/kmodules/peer-finder/releases/download/v1.0.0/peer-finder
     chmod +x peer-finder
-    mv peer-finder hack/docker/mysql/5.7.25/peer-finder
-    docker build -t alittleprogramming/mysql:group-test1 hack/docker/mysql/5.7.25/
-#    docker push alittleprogramming/mysql:group-test1
-    docker save alittleprogramming/mysql:group-test1 | pv | (eval $(minikube docker-env) && docker load)
-fi
 
+    local cmd="docker build --pull -t $DOCKER_REGISTRY/$IMG:$TAG ."
+    echo $cmd; $cmd
 
-kubectl delete -f hack/docker/mysql/5.7.25/my.yaml;
-kubectl get --all-namespaces pvc | grep my-gal | awk '{print $2 " -n " $1}' | xargs kubectl delete pvc;
-kubectl get --all-namespaces pv | grep my-galera | awk '{print $1}' | xargs kubectl delete pv;
-kubectl apply -f hack/docker/mysql/5.7.25/my.yaml
+    rm peer-finder
+    popd
+}
+
+binary_repo $@
