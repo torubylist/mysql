@@ -1,5 +1,5 @@
 hash: eb590f561b76aab9ab34b5917577f3576ec68189319c3ea89268690e2e825804
-updated: 2019-04-10T19:37:05.759016489+06:00
+updated: 2019-04-11T12:29:03.562405178+06:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -330,7 +330,7 @@ imports:
 - name: github.com/json-iterator/go
   version: 1624edc4454b8682399def8740d46db5e4362ba4
 - name: github.com/kubedb/apimachinery
-  version: 6208909ecbf4bd00f74345c526a44889da719cef
+  version: 4bf7365ddf166a66c865df6c8ef80d7692186d60
   subpackages:
   - apis
   - apis/authorization
@@ -392,7 +392,7 @@ imports:
 - name: github.com/modern-go/reflect2
   version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/ncw/swift
-  version: 24e3012fc8a71f004a6455bce2088031d50bf2b6
+  version: 753d2090bb62619675997bd87a8e3af423a00f2d
 - name: github.com/NYTimes/gziphandler
   version: 56545f4a5d46df9a6648819d1664c3a03a13ffdb
 - name: github.com/onsi/ginkgo
