@@ -148,7 +148,7 @@ func recursivelyVersionCompare(versionA []int64, versionB []int64) int {
 func validateVersion(version string) error {
 	recommended, err := semver.NewVersion(api.MySQLGRRecommendedVersion)
 	if err != nil {
-		return fmt.Errorf("unable to parse recommended MySQL version %s: %v",api.MySQLGRRecommendedVersion, err)
+		return fmt.Errorf("unable to parse recommended MySQL version %s: %v", api.MySQLGRRecommendedVersion, err)
 	}
 
 	given, err := semver.NewVersion(version)
