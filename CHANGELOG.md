@@ -1,5 +1,16 @@
 # Change Log
 
+## [0.5.0](https://github.com/kubedb/mysql/tree/0.5.0) (2019-05-06)
+[Full Changelog](https://github.com/kubedb/mysql/compare/0.4.0...0.5.0)
+
+**Merged pull requests:**
+
+- Mysql Group Replication tests [\#146](https://github.com/kubedb/mysql/pull/146) ([shudipta](https://github.com/shudipta))
+- Revendor dependencies [\#145](https://github.com/kubedb/mysql/pull/145) ([tamalsaha](https://github.com/tamalsaha))
+- Mysql Group Replication [\#144](https://github.com/kubedb/mysql/pull/144) ([shudipta](https://github.com/shudipta))
+- Fix PSP in Role for kubeDB upgrade [\#143](https://github.com/kubedb/mysql/pull/143) ([iamrz1](https://github.com/iamrz1))
+- Modify mutator validator names [\#142](https://github.com/kubedb/mysql/pull/142) ([iamrz1](https://github.com/iamrz1))
+
 ## [0.4.0](https://github.com/kubedb/mysql/tree/0.4.0) (2019-03-18)
 [Full Changelog](https://github.com/kubedb/mysql/compare/0.3.0...0.4.0)
 
