@@ -311,6 +311,20 @@ var _ = Describe("MySQL", func() {
 					createAndWaitForRunning()
 				})
 			})
+
+			Context("PDB", func() {
+
+				It("should run eviction successfully", func() {
+					// Create MySQL
+					By("Create and run DB with two replicas")
+					mysql.Spec.Replicas = types.Int32P(3)
+					createAndWaitForRunning()
+					//Evict a MySQL pod
+					By("Try to evict a pod")
+					err := f.EvictPodsFromStatefulSet(mysql.ObjectMeta)
+					Expect(err).NotTo(HaveOccurred())
+				})
+			})
 		})
 
 		Context("Snapshot", func() {
