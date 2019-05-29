@@ -315,12 +315,12 @@ var _ = Describe("MySQL", func() {
 			Context("PDB", func() {
 
 				It("should run eviction successfully", func() {
-					// Create MySQL
-					By("Create and run DB with two replicas")
 					mysql.Spec.Replicas = types.Int32P(3)
+					// Create MySQL
+					By("Create and run MySQL with three replicas")
 					createAndWaitForRunning()
-					//Evict a MySQL pod
-					By("Try to evict a pod")
+					//Evict MySQL pods
+					By("Try to evict pods")
 					err := f.EvictPodsFromStatefulSet(mysql.ObjectMeta)
 					Expect(err).NotTo(HaveOccurred())
 				})
