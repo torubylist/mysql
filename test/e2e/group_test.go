@@ -26,16 +26,6 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		dbNameKubedb string
 	)
 
-	BeforeEach(func() {
-		f = root.Invoke()
-		mysql = f.MySQLGroup()
-		garbageMySQL = new(api.MySQLList)
-		mysqlVersion = f.MySQLVersion()
-		//skipMessage = ""
-		dbName = "mysql"
-		dbNameKubedb = "kubedb"
-	})
-
 	var createAndWaitForRunning = func() {
 		By("Create MySQLVersion: " + mysqlVersion.Name)
 		err = f.CreateMySQLVersion(mysqlVersion)
@@ -111,6 +101,23 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		f.EventuallyInsertRow(mysql.ObjectMeta, dbNameKubedb, primaryPodIndex, rowCnt).Should(BeTrue())
 		f.EventuallyCountRow(mysql.ObjectMeta, dbNameKubedb, primaryPodIndex).Should(Equal(rowCnt))
 	}
+	var CheckDBVersionForGroupReplication = func() {
+		if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
+			Skip("For group replication CheckDBVersionForGroupReplication, DB version must be one of '5.7.25' or '5.7-v1'")
+		}
+	}
+
+	BeforeEach(func() {
+		f = root.Invoke()
+		mysql = f.MySQLGroup()
+		garbageMySQL = new(api.MySQLList)
+		mysqlVersion = f.MySQLVersion()
+		//skipMessage = ""
+		dbName = "mysql"
+		dbNameKubedb = "kubedb"
+
+		CheckDBVersionForGroupReplication()
+	})
 
 	Context("Behaviour tests", func() {
 		BeforeEach(func() {
@@ -138,9 +145,6 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		})
 
 		It("should be possible to create a basic 3 member group", func() {
-			if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
-				Skip("For group replication test, DB version must be one of '5.7.25' or '5.7-v1'")
-			}
 			for i := 0; i < api.MySQLDefaultGroupSize; i++ {
 				By(fmt.Sprintf("Checking ONLINE member count from Pod '%s-%d'", mysql.Name, i))
 				f.EventuallyONLINEMembersCount(mysql.ObjectMeta, dbName, i).Should(Equal(api.MySQLDefaultGroupSize))
@@ -166,9 +170,6 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		})
 
 		It("should failover successfully", func() {
-			if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
-				Skip("For group replication test, DB version must be one of '5.7.25' or '5.7-v1'")
-			}
 			for i := 0; i < api.MySQLDefaultGroupSize; i++ {
 				By(fmt.Sprintf("Checking ONLINE member count from Pod '%s-%d'", mysql.Name, i))
 				f.EventuallyONLINEMembersCount(mysql.ObjectMeta, dbName, i).Should(Equal(api.MySQLDefaultGroupSize))
@@ -206,9 +207,6 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		})
 
 		It("should be possible to scale up", func() {
-			if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
-				Skip("For group replication test, DB version must be one of '5.7.25' or '5.7-v1'")
-			}
 			for i := 0; i < api.MySQLDefaultGroupSize; i++ {
 				By(fmt.Sprintf("Checking ONLINE member count from Pod '%s-%d'", mysql.Name, i))
 				f.EventuallyONLINEMembersCount(mysql.ObjectMeta, dbName, i).Should(Equal(api.MySQLDefaultGroupSize))
@@ -255,9 +253,6 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		})
 
 		It("Should be possible to scale down", func() {
-			if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
-				Skip("For group replication test, DB version must be one of '5.7.25' or '5.7-v1'")
-			}
 			for i := 0; i < api.MySQLDefaultGroupSize; i++ {
 				By(fmt.Sprintf("Checking ONLINE member count from Pod '%s-%d'", mysql.Name, i))
 				f.EventuallyONLINEMembersCount(mysql.ObjectMeta, dbName, i).Should(Equal(api.MySQLDefaultGroupSize))
@@ -306,12 +301,9 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 
 	Context("PDB", func() {
 
-		It("should run eviction successfully", func() {
-			if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
-				Skip("For group replication test, DB version must be one of '5.7.25' or '5.7-v1'")
-			}
+		It("should run evictions successfully", func() {
 			// Create MySQL
-			By("Create and run MySQL group with three replicas")
+			By("Create and run MySQL Group with three replicas")
 			createAndWaitForRunning()
 			//Evict MySQL pods
 			By("Try to evict pods")
