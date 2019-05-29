@@ -46,6 +46,12 @@ func (c *Controller) ensureStatefulSet(mysql *api.MySQL) (kutil.VerbType, error)
 			vt,
 		)
 	}
+
+	// ensure pdb
+	if err := c.CreateStatefulSetPodDisruptionBudget(statefulSet); err != nil {
+		return kutil.VerbUnchanged, err
+	}
+
 	return vt, nil
 }
 
@@ -213,6 +219,7 @@ func (c *Controller) createStatefulSet(mysql *api.MySQL) (*apps.StatefulSet, kut
 
 		return in
 	})
+
 }
 
 func upsertDataVolume(statefulSet *apps.StatefulSet, mysql *api.MySQL) *apps.StatefulSet {

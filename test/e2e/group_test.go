@@ -26,16 +26,6 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		dbNameKubedb string
 	)
 
-	BeforeEach(func() {
-		f = root.Invoke()
-		mysql = f.MySQLGroup()
-		garbageMySQL = new(api.MySQLList)
-		mysqlVersion = f.MySQLVersion()
-		//skipMessage = ""
-		dbName = "mysql"
-		dbNameKubedb = "kubedb"
-	})
-
 	var createAndWaitForRunning = func() {
 		By("Create MySQLVersion: " + mysqlVersion.Name)
 		err = f.CreateMySQLVersion(mysqlVersion)
@@ -111,6 +101,23 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		f.EventuallyInsertRow(mysql.ObjectMeta, dbNameKubedb, primaryPodIndex, rowCnt).Should(BeTrue())
 		f.EventuallyCountRow(mysql.ObjectMeta, dbNameKubedb, primaryPodIndex).Should(Equal(rowCnt))
 	}
+	var CheckDBVersionForGroupReplication = func() {
+		if framework.DBVersion != "5.7.25" && framework.DBVersion != "5.7-v1" {
+			Skip("For group replication CheckDBVersionForGroupReplication, DB version must be one of '5.7.25' or '5.7-v1'")
+		}
+	}
+
+	BeforeEach(func() {
+		f = root.Invoke()
+		mysql = f.MySQLGroup()
+		garbageMySQL = new(api.MySQLList)
+		mysqlVersion = f.MySQLVersion()
+		//skipMessage = ""
+		dbName = "mysql"
+		dbNameKubedb = "kubedb"
+
+		CheckDBVersionForGroupReplication()
+	})
 
 	Context("Behaviour tests", func() {
 		BeforeEach(func() {
@@ -289,6 +296,19 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 				By(fmt.Sprintf("Read from secondary '%s-%d'", mysql.Name, i))
 				f.EventuallyCountRow(mysql.ObjectMeta, dbNameKubedb, i).Should(Equal(rowCnt))
 			}
+		})
+	})
+
+	Context("PDB", func() {
+
+		It("should run evictions successfully", func() {
+			// Create MySQL
+			By("Create and run MySQL Group with three replicas")
+			createAndWaitForRunning()
+			//Evict MySQL pods
+			By("Try to evict pods")
+			err := f.EvictPodsFromStatefulSet(mysql.ObjectMeta)
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })
