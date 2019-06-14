@@ -193,7 +193,7 @@ func setDefaultsFromDormantDB(extClient cs.Interface, mysql *api.MySQL) error {
 
 	if _, err := meta_util.GetString(mysql.Annotations, api.AnnotationInitialized); err == kutil.ErrNotFound &&
 		mysql.Spec.Init != nil &&
-		mysql.Spec.Init.SnapshotSource != nil {
+		(mysql.Spec.Init.SnapshotSource != nil || mysql.Spec.Init.StashRestoreSession != nil) {
 		mysql.Annotations = core_util.UpsertMap(mysql.Annotations, map[string]string{
 			api.AnnotationInitialized: "",
 		})
