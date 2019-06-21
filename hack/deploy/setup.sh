@@ -30,7 +30,7 @@ onessl_found() {
 
 onessl_found || {
   echo "Downloading onessl ..."
-  if [[ "$(uname -m)" == "aarch64" ]]; then
+  if [[ "$(uname -m)" == "arch64" ]]; then
     curl -fsSL -o onessl https://github.com/kubepack/onessl/releases/download/0.10.0/onessl-linux-arm64
     chmod +x onessl
     export ONESSL=./onessl
